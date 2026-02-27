@@ -1,0 +1,247 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Exo+2:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /*
+      STRICT COLOR PALETTE
+      Gray:         #818181  → 0 0% 51%
+      Desert Storm: #EDEDEA  → 60 8% 92%
+      Saffron:      #F3AE3E  → 37 88% 60%
+      Nobel:        #B4B4B4  → 0 0% 71%
+      Pure White:   #FFFFFF  → 0 0% 100%  (FX text + solar internal light ONLY)
+      Deep Space:   #05070B  → 220 38% 3%
+    */
+    --background: 220 38% 3%;
+    --foreground: 60 8% 92%;
+
+    --card: 220 20% 7%;
+    --card-foreground: 60 8% 92%;
+
+    --popover: 220 25% 5%;
+    --popover-foreground: 60 8% 92%;
+
+    --primary: 37 88% 60%;
+    --primary-foreground: 220 38% 3%;
+
+    --secondary: 0 0% 51%;
+    --secondary-foreground: 60 8% 92%;
+
+    --muted: 220 10% 14%;
+    --muted-foreground: 0 0% 71%;
+
+    --accent: 37 88% 60%;
+    --accent-foreground: 220 38% 3%;
+
+    --destructive: 37 88% 60%;
+    --destructive-foreground: 220 38% 3%;
+
+    --success: 37 88% 60%;
+    --success-foreground: 220 38% 3%;
+
+    --warning: 37 88% 60%;
+    --warning-foreground: 220 38% 3%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 11%;
+    --ring: 37 88% 60%;
+
+    --chart-1: 37 88% 60%;
+    --chart-2: 0 0% 51%;
+    --chart-3: 0 0% 71%;
+    --chart-4: 37 88% 45%;
+    --chart-5: 0 0% 40%;
+
+    --shadow-soft: 0 4px 20px -4px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 40px hsl(37 88% 60% / 0.2);
+    --shadow-panel: 0 8px 32px -8px hsl(0 0% 0% / 0.7);
+
+    --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Exo 2', sans-serif;
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply backdrop-blur-xl border border-border/50 rounded-lg;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.85) 0%,
+      hsl(var(--card) / 0.65) 100%
+    );
+    box-shadow: var(--shadow-panel);
+  }
+
+  .glow-effect {
+    position: relative;
+  }
+
+  .glow-effect::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: hsl(var(--primary) / 0.3);
+    filter: blur(12px);
+    opacity: 0;
+    transition: opacity var(--transition-smooth);
+    z-index: -1;
+  }
+
+  .glow-effect:hover::after {
+    opacity: 1;
+  }
+
+  .planet-card {
+    @apply relative overflow-hidden rounded-xl cursor-pointer;
+    transition: transform var(--transition-smooth), box-shadow var(--transition-smooth);
+  }
+
+  .planet-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .orbit-ring {
+    @apply absolute rounded-full border border-muted-foreground/20;
+    transform-style: preserve-3d;
+  }
+
+  .control-btn {
+    @apply flex items-center justify-center w-10 h-10 rounded-lg;
+    @apply bg-muted/50 hover:bg-muted text-foreground;
+    @apply transition-all duration-200;
+    @apply border border-border/50 hover:border-primary/50;
+  }
+
+  .control-btn:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+  }
+
+  .control-btn.active {
+    @apply bg-primary text-primary-foreground border-primary;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.4);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.6);
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+  }
+
+  .star {
+    animation: twinkle var(--twinkle-duration, 3s) ease-in-out infinite;
+    animation-delay: var(--twinkle-delay, 0s);
+  }
+
+  @keyframes sun-pulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 20px hsl(var(--primary) / 0.5));
+      transform: scale(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 40px hsl(var(--primary) / 0.7));
+      transform: scale(1.02);
+    }
+  }
+
+  .sun-glow {
+    animation: sun-pulse 4s ease-in-out infinite;
+  }
+
+  @keyframes orbit-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .orbit-spinner {
+    animation: orbit-spin 2s linear infinite;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out forwards;
+  }
+
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .animate-slide-in {
+    animation: slide-in-right 0.3s ease-out forwards;
+  }
+}
+
+@layer utilities {
+  .bg-space {
+    background: hsl(var(--background));
+  }
+
+  .bg-panel {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.9) 0%, hsl(var(--popover) / 0.95) 100%);
+  }
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+canvas {
+  display: block;
+  outline: none;
+}
+
+[data-debug-wrapper="true"] {
+  display: contents !important;
+}

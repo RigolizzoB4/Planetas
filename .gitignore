@@ -1,0 +1,17 @@
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+*.log
+*.tar.gz
+uploads/
+tmp/
+memory/
+CTRL + D
+git add .
+git commit -m "Projeto Planetas - versão inicial"
+git remote add origin https://github.com/RigolizzoB4/Planetas.git
+git branch -M main
+git push -u origin main

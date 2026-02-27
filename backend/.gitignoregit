@@ -1,0 +1,8 @@
+node_modules/
+.pytest_cache/
+.ruff_cache/
+tmp/
+memory/
+.emergent/
+.env
+*.log add .git commit -m Projeto inicial
