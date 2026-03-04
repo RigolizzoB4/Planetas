@@ -1,10 +1,10 @@
-import React from 'react';
-import { Search, Circle, Satellite, Sparkles } from 'lucide-react';
-import { Input } from './input';
-import { ScrollArea } from './scroll-area';
-import { Badge } from './badge';
-import { useSolarSystemStore } from '../../store/solarSystemStore';
-import { cn } from '../../lib/utils';
+import React from "react";
+import { Search, Circle, Satellite, Sparkles } from "lucide-react";
+import { Input } from "./input";
+import { ScrollArea } from "./scroll-area";
+import { Badge } from "./badge";
+import { useSolarSystemStore } from "../../store/solarSystemStore";
+import { cn } from "../../lib/utils";
 
 const typeIcons = {
   sun: <Sparkles className="w-4 h-4" style={{ color: '#F3AE3E' }} />,
@@ -23,16 +23,23 @@ const typeBadgeStyle = {
 export default function Sidebar() {
   const {
     sidebarOpen, searchQuery, setSearchQuery,
-    selectedObject, setSelectedObject, getFilteredObjects
+    selectedObject, setSelectedObject, objects
   } = useSolarSystemStore();
 
-  const filteredObjects = getFilteredObjects();
-
   const groupedObjects = React.useMemo(() => {
+    const query = (searchQuery || '').toLowerCase();
+    const list = query
+      ? objects.filter(obj =>
+          obj.name.toLowerCase().includes(query) ||
+          (obj.type && obj.type.toLowerCase().includes(query)) ||
+          (obj.description && obj.description.toLowerCase().includes(query)) ||
+          (obj.customFields?.moduleName && obj.customFields.moduleName.toLowerCase().includes(query))
+        )
+      : objects;
     const groups = { sun: [], planet: [], satellite: [], asteroid: [] };
-    filteredObjects.forEach(obj => { if (groups[obj.type]) groups[obj.type].push(obj); });
+    list.forEach(obj => { if (groups[obj.type]) groups[obj.type].push(obj); });
     return groups;
-  }, [filteredObjects]);
+  }, [objects, searchQuery]);
 
   if (!sidebarOpen) return null;
 

@@ -1,9 +1,10 @@
 import React from 'react';
-import { Maximize2, Minimize2, Download, Menu } from 'lucide-react';
+import { Maximize2, Minimize2, Download, Menu, ExternalLink } from 'lucide-react';
 import { Button } from './button';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
 const API = process.env.REACT_APP_BACKEND_URL;
+const VIEW_ONLINE_URL = process.env.REACT_APP_VIEW_ONLINE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
 export default function Header({ isFullscreen, toggleFullscreen }) {
   const { toggleSidebar } = useSolarSystemStore();
@@ -75,6 +76,19 @@ export default function Header({ isFullscreen, toggleFullscreen }) {
 
         {/* Right: actions */}
         <div className="flex items-center gap-2">
+          {VIEW_ONLINE_URL && (
+            <a
+              href={VIEW_ONLINE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors hover:opacity-90"
+              style={{ color: '#F3AE3E', background: 'rgba(243, 174, 62, 0.12)' }}
+              title="Ver online"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Ver online
+            </a>
+          )}
           <Button
             variant="ghost"
             size="icon"

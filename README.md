@@ -31,6 +31,13 @@ Simulação interativa 3D do Sistema Solar com metáfora ERP/APIs, construída c
 - Persistência em MongoDB
 - Export de cena em JSON
 
+## 🌐 Ver online
+
+- **Local (no seu PC):** depois de rodar `yarn start` no frontend, acesse **[http://localhost:3000](http://localhost:3000)**.
+- **Produção:** após deploy (Vercel, Netlify, etc.), use a URL que o serviço fornecer (ex: `https://seu-app.vercel.app`).
+
+---
+
 ## 🚀 Como Executar
 
 ### Requisitos
@@ -54,16 +61,14 @@ uvicorn server:app --reload --host 0.0.0.0 --port 8001
 
 ### Variáveis de Ambiente
 
-**Frontend (.env)**
-```
-REACT_APP_BACKEND_URL=http://localhost:8001
-```
+Copie os exemplos e ajuste se necessário:
 
-**Backend (.env)**
-```
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=solar_system_b4
-```
+- **Frontend:** `cp frontend/.env.example frontend/.env`
+- **Backend:** `cp backend/.env.example backend/.env`
+
+**Frontend (.env)** — `REACT_APP_BACKEND_URL=http://localhost:8001`
+
+**Backend (.env)** — `MONGO_URL`, `DB_NAME`, `CORS_ORIGINS` (ver `backend/.env.example`). Se não definir, backend usa `mongodb://localhost:27017` e `solar_system_b4` por padrão.
 
 ## 🏗️ Arquitetura
 

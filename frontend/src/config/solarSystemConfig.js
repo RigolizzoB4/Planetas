@@ -1,54 +1,56 @@
-// Texture URLs with fallback sources
-// Primary: Solar System Scope (https://www.solarsystemscope.com/textures/)
-// Fallback: Planet Pixel Emporium, NASA
+// Texture URLs — 8K when available (estilo "papel de parede" NASA / Solar System Scope).
+// Fontes: Solar System Scope (baseado em dados NASA/ESA), NASA 3D Resources, ESA.
+// https://www.solarsystemscope.com/textures/ | https://nasa3d.arc.nasa.gov/
+
+const SSS = 'https://www.solarsystemscope.com/textures/download/';
 
 export const TEXTURE_SOURCES = {
   Sun: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_sun.jpg',
+    diffuse: `${SSS}8k_sun.jpg`,
     fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/1024px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg'
   },
   Mercury: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_mercury.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Mercury_in_true_color.jpg/1024px-Mercury_in_true_color.jpg'
+    diffuse: `${SSS}8k_mercury.jpg`,
+    fallback: `${SSS}2k_mercury.jpg`
   },
   Venus: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_venus_surface.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Venus-real_color.jpg/1024px-Venus-real_color.jpg'
+    diffuse: `${SSS}8k_venus_surface.jpg`,
+    fallback: `${SSS}2k_venus_surface.jpg`
   },
   Earth: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_earth_daymap.jpg',
-    clouds: 'https://www.solarsystemscope.com/textures/download/2k_earth_clouds.jpg',
-    night: 'https://www.solarsystemscope.com/textures/download/2k_earth_nightmap.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/1024px-The_Blue_Marble_%28remastered%29.jpg'
+    diffuse: `${SSS}8k_earth_daymap.jpg`,
+    clouds: `${SSS}8k_earth_clouds.jpg`,
+    night: `${SSS}8k_earth_nightmap.jpg`,
+    fallback: `${SSS}2k_earth_daymap.jpg`
   },
   Mars: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_mars.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/02/OSIRIS_Mars_true_color.jpg/1024px-OSIRIS_Mars_true_color.jpg'
+    diffuse: `${SSS}8k_mars.jpg`,
+    fallback: `${SSS}2k_mars.jpg`
   },
   Jupiter: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_jupiter.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Jupiter_New_Horizons.jpg/1024px-Jupiter_New_Horizons.jpg'
+    diffuse: `${SSS}8k_jupiter.jpg`,
+    fallback: `${SSS}2k_jupiter.jpg`
   },
   Saturn: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_saturn.jpg',
-    ring: 'https://www.solarsystemscope.com/textures/download/2k_saturn_ring_alpha.png',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Saturn_during_Equinox.jpg/1024px-Saturn_during_Equinox.jpg'
+    diffuse: `${SSS}8k_saturn.jpg`,
+    ring: `${SSS}8k_saturn_ring_alpha.png`,
+    fallback: `${SSS}2k_saturn.jpg`
   },
   Uranus: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_uranus.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Uranus2.jpg/1024px-Uranus2.jpg'
+    diffuse: `${SSS}8k_uranus.jpg`,
+    fallback: `${SSS}2k_uranus.jpg`
   },
   Neptune: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_neptune.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Neptune_Full.jpg/1024px-Neptune_Full.jpg'
+    diffuse: `${SSS}8k_neptune.jpg`,
+    fallback: `${SSS}2k_neptune.jpg`
   },
   Moon: {
-    diffuse: 'https://www.solarsystemscope.com/textures/download/2k_moon.jpg',
-    fallback: 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/FullMoon2010.jpg/1024px-FullMoon2010.jpg'
+    diffuse: `${SSS}8k_moon.jpg`,
+    fallback: `${SSS}2k_moon.jpg`
   },
   Stars: {
-    milkyway: 'https://www.solarsystemscope.com/textures/download/2k_stars_milky_way.jpg',
-    fallback: 'https://www.solarsystemscope.com/textures/download/2k_stars.jpg'
+    milkyway: `${SSS}2k_stars_milky_way.jpg`,
+    fallback: `${SSS}2k_stars.jpg`
   }
 };
 

@@ -1,7 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { gsap } from 'gsap';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass';
@@ -190,21 +189,24 @@ const ATMO_FRAG = `
   }
 `;
 
-// ==================== TEXTURE URLS (served from backend) ====================
+// ==================== TEXTURE URLS (8K - estilo NASA / Solar System Scope) ====================
+// Texturas realistas "papel de parede": 8K prioritário; fallback 2K. Fontes: NASA, ESA, Solar System Scope.
 const API = process.env.REACT_APP_BACKEND_URL;
+const SOLAR_SCOPE_8K = 'https://www.solarsystemscope.com/textures/download/';
 const TEX = {
-  Sun: `${API}/api/textures/2k_sun.jpg`,
-  Mercury: `${API}/api/textures/2k_mercury.jpg`,
-  Venus: `${API}/api/textures/2k_venus_surface.jpg`,
-  Earth: `${API}/api/textures/2k_earth_daymap.jpg`,
-  EarthClouds: `${API}/api/textures/2k_earth_clouds.jpg`,
-  Mars: `${API}/api/textures/2k_mars.jpg`,
-  Jupiter: `${API}/api/textures/2k_jupiter.jpg`,
-  Saturn: `${API}/api/textures/2k_saturn.jpg`,
-  SaturnRing: `${API}/api/textures/2k_saturn_ring_alpha.png`,
-  Uranus: `${API}/api/textures/2k_uranus.jpg`,
-  Neptune: `${API}/api/textures/2k_neptune.jpg`
+  Sun: `${SOLAR_SCOPE_8K}8k_sun.jpg`,
+  Mercury: `${SOLAR_SCOPE_8K}8k_mercury.jpg`,
+  Venus: `${SOLAR_SCOPE_8K}8k_venus_surface.jpg`,
+  Earth: `${SOLAR_SCOPE_8K}8k_earth_daymap.jpg`,
+  EarthClouds: `${SOLAR_SCOPE_8K}8k_earth_clouds.jpg`,
+  Mars: `${SOLAR_SCOPE_8K}8k_mars.jpg`,
+  Jupiter: `${SOLAR_SCOPE_8K}8k_jupiter.jpg`,
+  Saturn: `${SOLAR_SCOPE_8K}8k_saturn.jpg`,
+  SaturnRing: `${SOLAR_SCOPE_8K}8k_saturn_ring_alpha.png`,
+  Uranus: `${SOLAR_SCOPE_8K}8k_uranus.jpg`,
+  Neptune: `${SOLAR_SCOPE_8K}8k_neptune.jpg`
 };
+const MILKY_WAY_URL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 
 const SUN_RADIUS = 5.5;
 const GLOBAL_ROTATION_SPEED = 0.008;
@@ -295,17 +297,36 @@ function constMap(val) {
 }
 
 // ==================== SCENE BUILDERS ====================
-function createStars(scene) {
+function createStars(scene, loader) {
+  // Via Láctea: esfera de fundo com textura realista (estilo Emergent / NASA)
+  const milkyWayRadius = 1200;
+  const milkyWayGeo = new THREE.SphereGeometry(milkyWayRadius, 32, 32);
+  const milkyWayMat = new THREE.MeshBasicMaterial({
+    map: null,
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false
+  });
+  const milkyWayMesh = new THREE.Mesh(milkyWayGeo, milkyWayMat);
+  milkyWayMesh.name = 'MilkyWayBackground';
+  scene.add(milkyWayMesh);
+  if (loader) {
+    loader.load(MILKY_WAY_URL, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      milkyWayMat.map = t;
+      milkyWayMat.needsUpdate = true;
+    });
+  }
+
   const count = 15000;
   const pos = new Float32Array(count * 3);
   const col = new Float32Array(count * 3);
-  // Star colors strictly from palette: warm Nobel, Desert Storm, Gray tones
   const spectral = [
-    { r: 0.51, g: 0.51, b: 0.51, w: 0.40 },  // #818181 Gray
-    { r: 0.71, g: 0.71, b: 0.71, w: 0.30 },  // #B4B4B4 Nobel
-    { r: 0.93, g: 0.93, b: 0.92, w: 0.20 },  // #EDEDEA Desert Storm
-    { r: 0.95, g: 0.68, b: 0.24, w: 0.08 },  // #F3AE3E Saffron (rare bright)
-    { r: 0.93, g: 0.93, b: 0.92, w: 0.02 }   // #EDEDEA bright
+    { r: 0.51, g: 0.51, b: 0.51, w: 0.40 },
+    { r: 0.71, g: 0.71, b: 0.71, w: 0.30 },
+    { r: 0.93, g: 0.93, b: 0.92, w: 0.20 },
+    { r: 0.95, g: 0.68, b: 0.24, w: 0.08 },
+    { r: 0.93, g: 0.93, b: 0.92, w: 0.02 }
   ];
   for (let i = 0; i < count; i++) {
     const r = 500 + Math.random() * 500;
@@ -330,143 +351,136 @@ function createSun(scene, loader, R) {
   const group = new THREE.Group();
   group.name = 'SunGroup';
 
-  // Photosphere - Custom animated shader
+  // 1. FOTOSFERA — camada externa brilhante (shader turbulento, gradiente laranja→amarelo, emissão)
   const sunMat = new THREE.ShaderMaterial({
     uniforms: {
-      uTime: { value: 0 }, uTex: { value: null }, uHasTex: { value: 0 },
+      uTime: { value: 0 },
+      uTex: { value: null },
+      uHasTex: { value: 0 },
       uEmission: { value: 2.8 }
     },
-    vertexShader: VERT, fragmentShader: SUN_FRAG
+    vertexShader: VERT,
+    fragmentShader: SUN_FRAG
   });
   R.sunMat = sunMat;
-  loader.load(TEX.Sun, (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; });
+  loader.load(TEX.Sun, (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; }, undefined, () => { loader.load(TEX.Sun.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; }); });
 
-  const photo = new THREE.Mesh(new THREE.SphereGeometry(5.5, 128, 128), sunMat);
-  photo.name = 'Sun'; photo.userData = { clickable: true, name: 'Sun' };
+  const photo = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS, 64, 64), sunMat);
+  photo.name = 'Sun';
+  photo.userData = { clickable: true, name: 'Sun' };
+  photo.renderOrder = 1;
   group.add(photo);
   R.sunLayers.photosphere = photo;
   R.planets['Sun'] = photo;
 
-  // ===== SOLAR CORE: Dark sphere + Logo plane + FX 3D Text =====
-  const coreGroup = new THREE.Group();
-  coreGroup.name = 'SolarCore';
-  coreGroup.renderOrder = 998;
-
-  // Dark core sphere — provides contrast backdrop
-  const coreMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(4, 128, 128),
-    new THREE.MeshBasicMaterial({
-      color: 0x050505,
-      depthTest: false, depthWrite: false
-    })
-  );
+  // 2. CORE — esfera escura interior (depthTest:false → visível através da fotosfera)
+  const coreGeo = new THREE.SphereGeometry(SUN_RADIUS * 0.72, 48, 48);
+  const coreMat = new THREE.MeshBasicMaterial({
+    color: 0x1a0a00,
+    transparent: true,
+    opacity: 0.7,
+    depthTest: false,
+    depthWrite: false
+  });
+  const coreMesh = new THREE.Mesh(coreGeo, coreMat);
   coreMesh.renderOrder = 998;
-  coreGroup.add(coreMesh);
 
-  // Logo B4 — Sprite (always faces camera = billboard)
+  // 3. LOGO B4 — sprite billboard (sempre virado para a câmera)
   const logoTex = loader.load(`${API}/api/textures/logo_b4.png`, (t) => {
     t.colorSpace = THREE.SRGBColorSpace;
   });
   const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: logoTex, transparent: true,
-    depthTest: false, depthWrite: false
+    map: logoTex,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
   }));
-  logoSprite.scale.set(4.5, 4.5 * 0.527, 1); // maintain aspect ratio (363/688 ≈ 0.527)
+  logoSprite.scale.set(4.5, 4.5 * 0.527, 1);
   logoSprite.position.set(0, 0.3, 0);
   logoSprite.renderOrder = 999;
-  coreGroup.add(logoSprite);
-  R.sunLayers.logoPlane = logoSprite;
 
-  // "ERD-FX" Text — canvas sprite positioned below the logo, dark core provides contrast
+  // 4. ERD-FX — sprite texto canvas (dourado/saffron)
   const fxCanvas = document.createElement('canvas');
-  fxCanvas.width = 512; fxCanvas.height = 256;
+  fxCanvas.width = 512;
+  fxCanvas.height = 128;
   const fxCtx = fxCanvas.getContext('2d');
-  fxCtx.clearRect(0, 0, 512, 256);
+  fxCtx.fillStyle = '#F3AE3E';
+  fxCtx.font = 'bold 72px monospace';
   fxCtx.textAlign = 'center';
   fxCtx.textBaseline = 'middle';
-  // Subtle glow
-  fxCtx.save();
-  fxCtx.filter = 'blur(6px)';
-  fxCtx.fillStyle = 'rgba(255,255,240,0.5)';
-  fxCtx.font = 'bold 90px "Helvetica Neue", Arial, sans-serif';
-  fxCtx.fillText('ERD-FX', 256, 128);
-  fxCtx.restore();
-  // Crisp white text
-  fxCtx.fillStyle = '#FFFFFF';
-  fxCtx.font = 'bold 90px "Helvetica Neue", Arial, sans-serif';
-  fxCtx.fillText('ERD-FX', 256, 128);
+  fxCtx.fillText('ERD-FX', 256, 90);
   const fxTex = new THREE.CanvasTexture(fxCanvas);
   fxTex.needsUpdate = true;
   const fxSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: fxTex, transparent: true,
-    depthTest: false, depthWrite: false
+    map: fxTex,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false
   }));
   fxSprite.scale.set(4.2, 1.8, 1);
   fxSprite.position.set(0, -2.1, 0.4);
   fxSprite.renderOrder = 999;
-  coreGroup.add(fxSprite);
-  R.sunLayers.fxSprite = fxSprite;
 
-  // Core always visible — depthTest:false renders through the photosphere
+  // 5. CORE GROUP — core + logo + ERD-FX
+  const coreGroup = new THREE.Group();
+  coreGroup.name = 'SolarCore';
+  coreGroup.add(coreMesh);
+  coreGroup.add(logoSprite);
+  coreGroup.add(fxSprite);
   coreGroup.visible = true;
   group.add(coreGroup);
   R.sunLayers.coreGroup = coreGroup;
+  R.sunLayers.logoPlane = logoSprite;
+  R.sunLayers.fxSprite = fxSprite;
 
-  // Internal layers (visible only in cross-section)
-  const layers = [
-    { key: 'core', radius: 1.8, color: 0xFFFF00, opacity: 0.95 },
-    { key: 'radiative', radius: 3.2, color: 0xFFAA00, opacity: 0.7 },
-    { key: 'convective', radius: 4.5, color: 0xFF6600, opacity: 0.5 }
+  // 6. CAMADAS INTERNAS (cross-section) — zona radiativa, convectiva, núcleo
+  const internalLayers = [
+    { key: 'radiative', r: SUN_RADIUS * 0.52, color: 0xff6600, opacity: 0.4 },
+    { key: 'convective', r: SUN_RADIUS * 0.32, color: 0xff9900, opacity: 0.5 },
+    { key: 'core', r: SUN_RADIUS * 0.15, color: 0xffcc00, opacity: 0.6 }
   ];
-  layers.forEach(l => {
+  internalLayers.forEach((l) => {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(l.radius, 64, 64),
-      new THREE.MeshBasicMaterial({ color: l.color, transparent: true, opacity: l.opacity })
+      new THREE.SphereGeometry(l.r, 48, 48),
+      new THREE.MeshBasicMaterial({
+        color: l.color,
+        transparent: true,
+        opacity: l.opacity,
+        depthTest: false,
+        depthWrite: false
+      })
     );
     mesh.visible = false;
     group.add(mesh);
     R.sunLayers[l.key] = mesh;
   });
 
-  // Corona - Fresnel glow shader
-  const coronaMat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 } },
-    vertexShader: VERT, fragmentShader: CORONA_FRAG,
-    transparent: true, side: THREE.BackSide, depthWrite: false, blending: THREE.AdditiveBlending
-  });
-  R.coronaMat = coronaMat;
-  const corona = new THREE.Mesh(new THREE.SphereGeometry(8.5, 64, 64), coronaMat);
-  corona.castShadow = false;
-  group.add(corona);
-  R.sunLayers.corona = corona;
-
-  // Solar Flares — animated additive glow layer
-  const flareMat = new THREE.ShaderMaterial({
+  // 7. GLOW — halo externo (rim laranja, AdditiveBlending)
+  const GLOW_FRAG = `
+    #include <common>
+    #include <logdepthbuf_pars_fragment>
+    varying vec3 vNormal;
+    varying vec3 vWorldPos;
+    void main() {
+      vec3 viewDir = normalize(cameraPosition - vWorldPos);
+      float rim = 1.0 - max(dot(vNormal, viewDir), 0.0);
+      rim = pow(rim, 3.5);
+      vec3 orange = vec3(1.0, 0.5, 0.1);
+      gl_FragColor = vec4(orange, rim * 0.7);
+      #include <logdepthbuf_fragment>
+    }
+  `;
+  const glowMat = new THREE.ShaderMaterial({
+    vertexShader: VERT,
+    fragmentShader: GLOW_FRAG,
     transparent: true,
-    blending: THREE.AdditiveBlending,
+    side: THREE.BackSide,
     depthWrite: false,
-    uniforms: { time: { value: 0 } },
-    vertexShader: `
-      varying vec2 vUv;
-      void main(){
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      varying vec2 vUv;
-      uniform float time;
-      void main(){
-        float glow = 0.6 + 0.4 * sin(time * 2.0 + vUv.y * 10.0);
-        vec3 color = vec3(1.0, 0.4, 0.05) * glow;
-        gl_FragColor = vec4(color, glow * 0.6);
-      }
-    `
+    blending: THREE.AdditiveBlending
   });
-  const flareMesh = new THREE.Mesh(new THREE.SphereGeometry(5.5, 128, 128), flareMat);
-  flareMesh.castShadow = false;
-  group.add(flareMesh);
-  R.sunLayers.flareMat = flareMat;
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS * 1.18, 48, 48), glowMat);
+  group.add(glow);
+  R.sunLayers.glow = glow;
 
   scene.add(group);
   R.sunLayers.group = group;
@@ -576,83 +590,78 @@ function updateAuroras(auroras, delta) {
   });
 }
 
+// Estilo dos satélites artificiais: "compact" (cubo + painéis discretos) — não é mais Jason-2
+const SATELLITE_STYLE = 'compact'; // 'compact' = estilo moderno; mantido código legado comentado se precisar Jason-2
+const SATELLITE_SCALE_FACTOR = 1 / 3; // 1/3 do tamanho anterior (pedido do usuário)
+
 function createSatelliteModel(cfg) {
   const group = new THREE.Group();
 
   const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0x9aa2a9,
-    metalness: 0.75,
-    roughness: 0.35,
-    emissive: 0x1c1f24,
-    emissiveIntensity: 0.35
-  });
-  const detailMat = new THREE.MeshStandardMaterial({
-    color: 0xcfd6dd,
-    metalness: 0.6,
-    roughness: 0.35,
-    emissive: 0x23262b,
-    emissiveIntensity: 0.35
+    color: 0xa0a8b0,
+    metalness: 0.8,
+    roughness: 0.3,
+    emissive: 0x1a1d22,
+    emissiveIntensity: 0.25
   });
   const panelMat = new THREE.MeshStandardMaterial({
-    color: 0x244a86,
-    emissive: 0x0f2247,
-    emissiveIntensity: 0.6,
-    metalness: 0.25,
-    roughness: 0.55
+    color: 0x2a3a5a,
+    metalness: 0.3,
+    roughness: 0.6,
+    emissive: 0x0a1225,
+    emissiveIntensity: 0.4
   });
-
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 1.1, 32), bodyMat);
-  body.rotation.x = Math.PI / 2;
-  group.add(body);
-
-  const dish = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.55, 32, 1, true), detailMat);
-  dish.rotation.x = Math.PI / 2;
-  dish.position.z = 0.8;
-  group.add(dish);
-
-  const dishNeck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.2, 16), detailMat);
-  dishNeck.rotation.x = Math.PI / 2;
-  dishNeck.position.z = 0.55;
-  group.add(dishNeck);
-
-  const panelGeo = new THREE.BoxGeometry(1.6, 0.05, 0.8);
-  const panelLeft = new THREE.Mesh(panelGeo, panelMat);
-  panelLeft.position.set(-1.25, 0.0, 0.0);
-  const panelRight = new THREE.Mesh(panelGeo, panelMat);
-  panelRight.position.set(1.25, 0.0, 0.0);
-  group.add(panelLeft, panelRight);
-
-  const panelFrameGeo = new THREE.BoxGeometry(1.72, 0.07, 0.9);
-  const panelFrameLeft = new THREE.Mesh(panelFrameGeo, detailMat);
-  panelFrameLeft.position.set(-1.25, -0.06, 0.0);
-  const panelFrameRight = new THREE.Mesh(panelFrameGeo, detailMat);
-  panelFrameRight.position.set(1.25, -0.06, 0.0);
-  group.add(panelFrameLeft, panelFrameRight);
-
-  const frameMat = new THREE.MeshStandardMaterial({
+  const accentMat = new THREE.MeshStandardMaterial({
     color: 0x6f757b,
-    metalness: 0.5,
+    metalness: 0.55,
     roughness: 0.4,
-    emissive: 0x1a1d21,
-    emissiveIntensity: 0.3
+    emissive: 0x15181c,
+    emissiveIntensity: 0.2
   });
-  const strutGeo = new THREE.BoxGeometry(0.3, 0.04, 0.04);
-  const strutLeft = new THREE.Mesh(strutGeo, frameMat);
-  strutLeft.position.set(-0.55, 0, 0);
-  const strutRight = new THREE.Mesh(strutGeo, frameMat);
-  strutRight.position.set(0.55, 0, 0);
-  group.add(strutLeft, strutRight);
 
-  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.7, 16), frameMat);
-  antenna.position.set(0, 0.45, -0.1);
-  group.add(antenna);
+  if (SATELLITE_STYLE === 'compact') {
+    // Corpo principal: caixa compacta (não cilindro/dish tipo Jason-2)
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.45, 1), bodyMat);
+    body.rotation.x = Math.PI / 2;
+    body.rotation.z = Math.PI / 6;
+    group.add(body);
 
-  const thruster = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.18, 16), frameMat);
-  thruster.rotation.x = Math.PI / 2;
-  thruster.position.z = -0.75;
-  group.add(thruster);
+    // Painéis solares finos e menores (2 lados)
+    const panelW = 0.5, panelH = 0.35, panelD = 0.02;
+    const panelGeo = new THREE.BoxGeometry(panelW, panelD, panelH);
+    const panelLeft = new THREE.Mesh(panelGeo, panelMat);
+    panelLeft.position.set(-0.38, 0, 0);
+    const panelRight = new THREE.Mesh(panelGeo, panelMat);
+    panelRight.position.set(0.38, 0, 0);
+    group.add(panelLeft, panelRight);
 
-  const scale = 0.6 + cfg.size;
+    // Pequena antena (haste)
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.25, 8), accentMat);
+    antenna.position.set(0, 0.18, 0);
+    group.add(antenna);
+
+    // Pequeno “sensor” frontal (cubo)
+    const sensor = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.05, 1), accentMat);
+    sensor.position.z = 0.28;
+    group.add(sensor);
+  } else {
+    // Fallback estilo legado (Jason-2-like) — mantido para compatibilidade
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 1.1, 32), bodyMat);
+    body.rotation.x = Math.PI / 2;
+    group.add(body);
+    const dish = new THREE.Mesh(new THREE.ConeGeometry(0.46, 0.55, 32, 1, true), accentMat);
+    dish.rotation.x = Math.PI / 2;
+    dish.position.z = 0.8;
+    group.add(dish);
+    const panelGeo = new THREE.BoxGeometry(1.6, 0.05, 0.8);
+    const pl = new THREE.Mesh(panelGeo, panelMat);
+    pl.position.set(-1.25, 0, 0);
+    const pr = new THREE.Mesh(panelGeo, panelMat);
+    pr.position.set(1.25, 0, 0);
+    group.add(pl, pr);
+  }
+
+  const scale = (0.6 + cfg.size) * SATELLITE_SCALE_FACTOR;
   group.scale.setScalar(scale);
   group.rotation.y = Math.random() * Math.PI * 2;
 
@@ -679,7 +688,8 @@ function createPlanet(scene, loader, name, cfg, R) {
   mat.metalnessMap = constMap(cfg.metal);
 
   if (TEX[name]) {
-    loader.load(TEX[name], (tex) => {
+    const fallback2k = TEX[name].replace(/8k_/g, '2k_');
+    const applyTex = (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       mat.map = tex;
       const nMap = genNormalMap(tex.image, cfg.nStr);
@@ -687,6 +697,9 @@ function createPlanet(scene, loader, name, cfg, R) {
       const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
       if (rMap) mat.roughnessMap = rMap;
       mat.needsUpdate = true;
+    };
+    loader.load(TEX[name], applyTex, undefined, () => {
+      if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex);
     });
   }
 
@@ -716,7 +729,7 @@ function createPlanet(scene, loader, name, cfg, R) {
     });
     loader.load(TEX.SaturnRing, (t) => {
       t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true;
-    });
+    }, undefined, () => { loader.load(TEX.SaturnRing.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; }); });
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = Math.PI / 2.5; ring.receiveShadow = true;
     planet.add(ring);
@@ -725,7 +738,7 @@ function createPlanet(scene, loader, name, cfg, R) {
   // Earth clouds
   if (cfg.clouds) {
     const cloudMat = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false, roughness: 1.0, metalness: 0.0 });
-    loader.load(TEX.EarthClouds, (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; });
+    loader.load(TEX.EarthClouds, (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; }, undefined, () => { loader.load(TEX.EarthClouds.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; }); });
     const clouds = new THREE.Mesh(new THREE.SphereGeometry(cfg.size * 1.02, 64, 64), cloudMat);
     planet.add(clouds);
     R.planets['EarthClouds'] = clouds;
@@ -747,10 +760,11 @@ function createPlanet(scene, loader, name, cfg, R) {
     Jupiter: 0x66aaff,
     Saturn: 0x88bbff
   };
-  if (auroraColors[name]) {
+  if (  auroraColors[name]) {
     const aurora = createAurora(cfg.size, auroraColors[name]);
     aurora.name = `${name}Aurora`;
     aurora.renderOrder = 3;
+    if (name === 'Earth') aurora.visible = false;
     planet.add(aurora);
     R.auroras.push(aurora);
   }
@@ -800,8 +814,8 @@ function createSatellites(scene, loader, R, satelliteModel = null) {
 
     const sat = satelliteModel ? satelliteModel.clone(true) : createSatelliteModel(cfg);
     if (satelliteModel) {
-      const jason2Scale = PLANETS.Mars.size * 0.15;
-      sat.scale.setScalar(jason2Scale);
+      const baseScale = PLANETS.Mars.size * 0.15;
+      sat.scale.setScalar(baseScale * SATELLITE_SCALE_FACTOR); // 1/3 do tamanho
     }
     sat.name = cfg.name;
     sat.position.set(Math.cos(a) * satOrbit, 0, Math.sin(a) * satOrbit);
@@ -831,7 +845,7 @@ function createSatellites(scene, loader, R, satelliteModel = null) {
 
     // Label above satellite — shows module/API name
     const label = createLabel(cfg.module);
-    label.position.y = satelliteModel ? 2.2 : 0.9 + cfg.size * 4;
+    label.position.y = satelliteModel ? 1.2 : 0.5 + cfg.size * 2.5;
     sat.add(label);
 
     scene.add(sat);
@@ -873,10 +887,14 @@ export default function SolarSystemPhotorealistic() {
     scene: null, renderer: null, camera: null, controls: null, composer: null,
     clock: new THREE.Clock(), planets: {}, satellites: [], sunLayers: {},
     angles: {}, frameId: null, sunMat: null, coronaMat: null, elapsed: 0,
-    auroras: [], focusTweens: null, isAnimatingFocus: false, solarGroup: null, outlinePass: null, userInteracting: false, initialZoomDone: false
+    auroras: [], focusTweens: null, isAnimatingFocus: false, solarGroup: null, outlinePass: null,
+    userInteracting: false, initialZoomDone: false, focusTarget: null, hoverMesh: null
   });
 
-  const { objects, setSelectedObject, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
+  const { objects, setSelectedObject, setAuroraPanelOpen, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
+  refs.current.latestObjects = objects;
+  refs.current.latestSetSelectedObject = setSelectedObject;
+  refs.current.latestSetAuroraPanelOpen = setAuroraPanelOpen;
 
   // ===== INIT SCENE =====
   useEffect(() => {
@@ -898,9 +916,9 @@ export default function SolarSystemPhotorealistic() {
     scene.add(solarGroup);
     R.solarGroup = solarGroup;
 
-    // Camera
+    // Camera — posição inicial (0, 60, 140), target no Sol
     const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 2000);
-    camera.position.set(0, 40, 100);
+    camera.position.set(0, 60, 140);
     R.camera = camera;
 
     // Renderer - NASA-grade constraints
@@ -929,6 +947,8 @@ export default function SolarSystemPhotorealistic() {
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.radius = 4;
     scene.add(sunLight);
+    const hemilight = new THREE.HemisphereLight(0x4488cc, 0x0a0e14, 0.15);
+    scene.add(hemilight);
 
     // Post-processing: Bloom + SMAA + Output
     const pr = renderer.getPixelRatio();
@@ -948,18 +968,19 @@ export default function SolarSystemPhotorealistic() {
     R.composer = composer;
     R.outlinePass = outlinePass;
 
-    // Controls
+    // Controls — spec B4: scroll zoom 2.0, min 0.5 / max 600, damping 0.03, rotate 0.5, pan 0.8, 360°
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0, 0);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 2;
-    controls.maxDistance = SYSTEM_LIMIT_RADIUS;
+    controls.dampingFactor = 0.03;
+    controls.minDistance = 0.5;
+    controls.maxDistance = 600;
     controls.enablePan = true;
-    controls.screenSpacePanning = false;
-    controls.maxPolarAngle = Math.PI - 0.05;
-    controls.panSpeed = 0.4;
-    controls.rotateSpeed = 0.4;
-    controls.zoomSpeed = 1.1;
+    controls.screenSpacePanning = true;
+    controls.maxPolarAngle = Math.PI;
+    controls.panSpeed = 0.8;
+    controls.rotateSpeed = 0.5;
+    controls.zoomSpeed = 2.0;
     R.controls = controls;
 
     const onControlStart = () => {
@@ -969,9 +990,11 @@ export default function SolarSystemPhotorealistic() {
       }
       R.focusTarget = null;
       R.isAnimatingFocus = false;
+      R.hoverMesh = null;
     };
     const onControlEnd = () => {
       R.userInteracting = false;
+      R.focusTarget = null;
     };
     controls.addEventListener('start', onControlStart);
     controls.addEventListener('end', onControlEnd);
@@ -980,104 +1003,129 @@ export default function SolarSystemPhotorealistic() {
     const loader = new THREE.TextureLoader();
     loader.crossOrigin = 'anonymous';
 
-    // HDR background (deep space) - procedural stars
-    createStars(scene);
+    // Fundo: Via Láctea (textura) + estrelas procedurais (alinhado ao Emergent)
+    createStars(scene, loader);
     createStaticConstellations(scene);
 
     // Build scene — satellites FIRST, then planets
     createSun(solarGroup, loader, R);
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.load(
-      '/models/jason2.glb',
-      (gltf) => {
-        const model = gltf.scene;
-        const box = new THREE.Box3().setFromObject(model);
-        const center = box.getCenter(new THREE.Vector3());
-        model.position.sub(center);
-        createSatellites(solarGroup, loader, R, model);
-      },
-      undefined,
-      () => createSatellites(solarGroup, loader, R)
-    );
+    createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
 
-    const runInitialZoom = () => {
+    // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
+    const runIntro = () => {
       controls.enabled = false;
       R.isAnimatingFocus = true;
-      const fxTarget = new THREE.Vector3();
+      const auroraTarget = new THREE.Vector3();
       if (R.sunLayers.fxSprite) {
-        R.sunLayers.fxSprite.getWorldPosition(fxTarget);
+        R.sunLayers.fxSprite.getWorldPosition(auroraTarget);
       }
-      const fxCamPos = fxTarget.clone().add(new THREE.Vector3(0, 2.2, 7));
+      const camEnd = auroraTarget.clone().add(new THREE.Vector3(0, 8, 25));
       const camTween = gsap.to(camera.position, {
-        x: fxCamPos.x,
-        y: fxCamPos.y,
-        z: fxCamPos.z,
-        duration: 2.2,
-        ease: 'power2.out',
+        x: camEnd.x,
+        y: camEnd.y,
+        z: camEnd.z,
+        duration: 3.5,
+        ease: 'power2.inOut',
+        delay: 2,
         onComplete: () => {
+          controls.target.set(0, 0, 0);
           controls.enabled = true;
           R.isAnimatingFocus = false;
           R.initialZoomDone = true;
+          R.focusTweens = null;
+          if (R.latestSetAuroraPanelOpen) R.latestSetAuroraPanelOpen(true);
         }
       });
       const targetTween = gsap.to(controls.target, {
-        x: fxTarget.x,
-        y: fxTarget.y,
-        z: fxTarget.z,
-        duration: 2.2,
-        ease: 'power2.out'
+        x: auroraTarget.x,
+        y: auroraTarget.y,
+        z: auroraTarget.z,
+        duration: 3.5,
+        ease: 'power2.inOut',
+        delay: 2
       });
       R.focusTweens = [camTween, targetTween];
     };
-    runInitialZoom();
+    runIntro();
 
-    // Raycaster + Hover Zoom
+    // Raycaster — hover: só outline + pointer (não move câmera); clique: popup + approachObject
     const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
-    R.focusTarget = null;
 
-    const focusOnObject = (mesh, distFactor) => {
-      if (!mesh) return;
-      const worldPos = new THREE.Vector3();
-      mesh.getWorldPosition(worldPos);
-      const size = mesh.geometry?.boundingSphere?.radius || 1;
-      const offset = new THREE.Vector3(0, size * 0.5, size * distFactor);
-      R.focusTarget = { position: worldPos.clone().add(offset), lookAt: worldPos.clone() };
+    const getCollisionBodies = () => {
+      const bodies = [{ center: new THREE.Vector3(0, 0, 0), radius: 6.5 }];
+      Object.entries(PLANETS).forEach(([name, cfg]) => {
+        const mesh = R.planets[name];
+        if (mesh) {
+          const center = new THREE.Vector3();
+          mesh.getWorldPosition(center);
+          bodies.push({ center, radius: cfg.size * 1.3 });
+        }
+      });
+      return bodies;
     };
 
-    const focusObject = (object) => {
+    const pushCameraOutOfBodies = () => {
+      const bodies = getCollisionBodies();
+      const camPos = camera.position.clone();
+      for (const { center, radius } of bodies) {
+        const d = camPos.distanceTo(center);
+        if (d < radius) {
+          const dir = camPos.clone().sub(center).normalize();
+          camPos.copy(center).add(dir.multiplyScalar(radius));
+          camera.position.copy(camPos);
+        }
+      }
+    };
+
+    const approachObject = (object) => {
       if (!object) return;
       const box = new THREE.Box3().setFromObject(object);
       const center = box.getCenter(new THREE.Vector3());
       const size = box.getSize(new THREE.Vector3()).length();
-      const distance = size * 2;
+      const distance = Math.max(size * 2.5, 6);
+      const dir = camera.position.clone().sub(center).normalize();
+      let camEnd = center.clone().add(dir.multiplyScalar(distance));
+      const minY = center.y + size * 0.3;
+      if (camEnd.y < minY) camEnd.y = minY;
+      const bodies = getCollisionBodies();
+      for (const { center: c, radius } of bodies) {
+        if (c.distanceTo(center) < 0.1) continue;
+        const toCam = camEnd.clone().sub(c).normalize();
+        const d = camEnd.distanceTo(c);
+        if (d < radius) {
+          camEnd.copy(c).add(toCam.multiplyScalar(radius));
+        }
+      }
 
       if (R.focusTweens?.length) {
         R.focusTweens.forEach(t => t.kill());
       }
       R.isAnimatingFocus = true;
+      R.hoverMesh = null;
 
       const camTween = gsap.to(camera.position, {
-        x: center.x + distance,
-        y: center.y + distance * 0.5,
-        z: center.z + distance,
-        duration: 1.5,
+        x: camEnd.x,
+        y: camEnd.y,
+        z: camEnd.z,
+        duration: 1.8,
         ease: 'power2.out',
-        onComplete: () => { R.isAnimatingFocus = false; }
+        onComplete: () => {
+          R.isAnimatingFocus = false;
+          R.hoverMesh = null;
+          R.focusTweens = null;
+        }
       });
-
       const targetTween = gsap.to(controls.target, {
         x: center.x,
         y: center.y,
         z: center.z,
-        duration: 1.5,
+        duration: 1.8,
         ease: 'power2.out'
       });
-
       R.focusTweens = [camTween, targetTween];
     };
-
 
     const clearFocus = () => {
       if (R.focusTweens?.length) {
@@ -1085,6 +1133,7 @@ export default function SolarSystemPhotorealistic() {
       }
       R.focusTarget = null;
       R.isAnimatingFocus = false;
+      R.hoverMesh = null;
       R.focusTweens = null;
     };
 
@@ -1095,9 +1144,10 @@ export default function SolarSystemPhotorealistic() {
         clearFocus();
         return;
       }
-      const obj = objects.find(o => o.name === intersected.userData.name);
-      if (obj) setSelectedObject(obj);
-      focusObject(intersected);
+      const list = R.latestObjects || [];
+      const obj = list.find(o => o.name === intersected.userData.name);
+      if (obj && R.latestSetSelectedObject) R.latestSetSelectedObject(obj);
+      approachObject(intersected);
     };
     const onMove = (e) => {
       const rect = renderer.domElement.getBoundingClientRect();
@@ -1108,15 +1158,11 @@ export default function SolarSystemPhotorealistic() {
       for (const hit of ray.intersectObjects(scene.children, true)) {
         if (hit.object.userData?.clickable) {
           intersected = hit.object;
-          if (!R.userInteracting && !R.isAnimatingFocus) {
-            focusOnObject(hit.object, 2.2);
-          }
+          R.hoverMesh = intersected;
           break;
         }
       }
-      if (!R.userInteracting && !R.isAnimatingFocus && !intersected) {
-        R.focusTarget = null;
-      }
+      if (!intersected) R.hoverMesh = null;
       if (R.outlinePass) {
         R.outlinePass.selectedObjects = intersected ? [intersected] : [];
       }
@@ -1152,34 +1198,31 @@ export default function SolarSystemPhotorealistic() {
       }
       if (R.sunMat) R.sunMat.uniforms.uTime.value = R.elapsed;
       if (R.coronaMat) R.coronaMat.uniforms.uTime.value = R.elapsed;
-      if (R.auroras?.length) updateAuroras(R.auroras, delta);
-      if (R.sunLayers.flareMat) R.sunLayers.flareMat.uniforms.time.value += 0.01;
-      if (R.sunLayers.corona) { R.sunLayers.corona.rotation.y += 0.001; R.sunLayers.corona.rotation.z += 0.0005; }
+      if (R.auroras?.length) {
+        updateAuroras(R.auroras, delta);
+        // Aurora boreal na Terra: visível 60s a cada 7 minutos (420s)
+        const auroraCycle = 420;
+        const auroraVisibleDuration = 60;
+        R.auroras.forEach((a) => {
+          if (a.name === 'EarthAurora') {
+            const t = R.elapsed % auroraCycle;
+            a.visible = t < auroraVisibleDuration;
+          }
+        });
+      }
       if (R.sunLayers.photosphere) R.sunLayers.photosphere.rotation.y += 0.001;
-      // FX + Logo: stable slow breathing presence
-      if (R.sunLayers.fxSprite) {
-        const pulse = 0.88 + Math.sin(R.elapsed * 0.35) * 0.12;
-        R.sunLayers.fxSprite.material.opacity = pulse;
-      }
-      if (R.sunLayers.logoPlane) {
-        const logoPulse = 0.85 + Math.sin(R.elapsed * 0.35) * 0.10;
-        R.sunLayers.logoPlane.material.opacity = logoPulse;
-      }
-      // Smooth hover zoom animation (desativado ao seguir)
-      if (!R.userInteracting && !R.isAnimatingFocus && R.focusTarget) {
-        camera.position.lerp(R.focusTarget.position, 0.04);
-        controls.target.lerp(R.focusTarget.lookAt, 0.04);
-        if (camera.position.distanceTo(R.focusTarget.position) < 0.1) {
-          R.focusTarget = null;
-        }
+      // Logo + ERD-FX: breathing (pulsação suave) 0.85 + 0.15*sin(elapsed*0.8)
+      const logoPulse = 0.85 + 0.15 * Math.sin(R.elapsed * 0.8);
+      if (R.sunLayers.logoPlane) R.sunLayers.logoPlane.material.opacity = logoPulse;
+      if (R.sunLayers.fxSprite) R.sunLayers.fxSprite.material.opacity = logoPulse;
+      // Hover: target acompanha objeto em movimento (não move câmera)
+      if (R.hoverMesh && !R.userInteracting && !R.isAnimatingFocus) {
+        const wp = new THREE.Vector3();
+        R.hoverMesh.getWorldPosition(wp);
+        controls.target.lerp(wp, 0.05);
       }
 
-      if (camera.position.length() < SUN_RADIUS * 1.2) {
-        camera.position.setLength(SUN_RADIUS * 2);
-      }
-      if (camera.position.length() > SYSTEM_LIMIT_RADIUS) {
-        camera.position.setLength(SYSTEM_LIMIT_RADIUS);
-      }
+      pushCameraOutOfBodies();
       composer.render();
     };
     animate();
@@ -1192,10 +1235,36 @@ export default function SolarSystemPhotorealistic() {
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('mousemove', onMove);
       cancelAnimationFrame(R.frameId);
-      controls.dispose(); renderer.dispose(); composer.dispose();
+      if (scene) {
+        scene.traverse((object) => {
+          if (object.geometry) object.geometry.dispose();
+          if (object.material) {
+            const materials = Array.isArray(object.material) ? object.material : [object.material];
+            materials.forEach((m) => {
+              if (m.map) m.map.dispose();
+              if (m.lightMap) m.lightMap.dispose();
+              if (m.bumpMap) m.bumpMap.dispose();
+              if (m.normalMap) m.normalMap.dispose();
+              if (m.roughnessMap) m.roughnessMap.dispose();
+              if (m.metalnessMap) m.metalnessMap.dispose();
+              if (m.envMap) m.envMap.dispose();
+              if (m.uniforms) {
+                Object.keys(m.uniforms).forEach((k) => {
+                  const v = m.uniforms[k]?.value;
+                  if (v && v.isTexture) v.dispose();
+                });
+              }
+              m.dispose();
+            });
+          }
+        });
+      }
+      controls.dispose();
+      composer.dispose();
+      renderer.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };
-  }, [objects, setSelectedObject]);
+  }, []);
 
   // ===== ANIMATION (planets, satellites, asteroids) =====
   useEffect(() => {
@@ -1229,25 +1298,25 @@ export default function SolarSystemPhotorealistic() {
     return () => cancelAnimationFrame(animId);
   }, [isPaused, timeSpeed]);
 
-  // ===== CROSS-SECTION SUN =====
+  // ===== CROSS-SECTION SUN ===== (camadas internas: núcleo 0.15, convectiva 0.32, radiativa 0.52)
   useEffect(() => {
     const L = refs.current.sunLayers;
     if (!L.photosphere) return;
     if (showCrossSectionSun) {
       L.photosphere.geometry.dispose();
-      L.photosphere.geometry = new THREE.SphereGeometry(5.5, 128, 128, 0, Math.PI * 1.5);
+      L.photosphere.geometry = new THREE.SphereGeometry(SUN_RADIUS, 64, 64, 0, Math.PI * 1.5);
       ['core', 'radiative', 'convective'].forEach(k => {
         if (L[k]) {
           L[k].visible = true;
           L[k].geometry.dispose();
-          const r = k === 'core' ? 1.8 : k === 'radiative' ? 3.2 : 4.5;
-          L[k].geometry = new THREE.SphereGeometry(r, 64, 64, 0, Math.PI * 1.5);
+          const r = k === 'core' ? SUN_RADIUS * 0.15 : k === 'radiative' ? SUN_RADIUS * 0.52 : SUN_RADIUS * 0.32;
+          L[k].geometry = new THREE.SphereGeometry(r, 48, 48, 0, Math.PI * 1.5);
         }
       });
       if (L.coreGroup) L.coreGroup.visible = true;
     } else {
       L.photosphere.geometry.dispose();
-      L.photosphere.geometry = new THREE.SphereGeometry(5.5, 128, 128);
+      L.photosphere.geometry = new THREE.SphereGeometry(SUN_RADIUS, 64, 64);
       ['core', 'radiative', 'convective'].forEach(k => { if (L[k]) L[k].visible = false; });
       if (L.coreGroup) L.coreGroup.visible = false;
     }

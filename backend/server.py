@@ -19,10 +19,11 @@ load_dotenv(ROOT_DIR / '.env')
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+# MongoDB connection (with defaults for local dev)
+mongo_url = os.environ.get('MONGO_URL', 'mongodb://localhost:27017')
+db_name = os.environ.get('DB_NAME', 'solar_system_b4')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[db_name]
 
 # Create the main app
 app = FastAPI(title="Solar System B4 API", version="1.0.0")
@@ -267,22 +268,40 @@ async def save_scene(manifest: SceneManifest):
 
 # ==================== UPLOAD ROUTES ====================
 
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+def sanitize_filename(name: str) -> str:
+    """Keep only safe characters for file extension."""
+    return "".join(c for c in name if c.isalnum() or c in "._-").strip() or "image"
+
+
 @api_router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Upload image and return URL"""
-    if not file.content_type.startswith('image/'):
+    """Upload image and return URL. Max 5MB, allowed: jpg, jpeg, png, gif, webp."""
+    if not file.content_type or not file.content_type.startswith('image/'):
         raise HTTPException(status_code=400, detail="Only image files are allowed")
     
-    # Generate unique filename
-    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+    ext_raw = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    ext = sanitize_filename(ext_raw) if ext_raw else 'png'
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Allowed extensions: {', '.join(sorted(ALLOWED_IMAGE_EXTENSIONS))}"
+        )
+    
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size is {MAX_UPLOAD_BYTES // (1024*1024)} MB"
+        )
+    
     filename = f"{uuid.uuid4()}.{ext}"
     filepath = UPLOADS_DIR / filename
+    filepath.write_bytes(content)
     
-    # Save file
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Return URL (relative path for API access)
     return {
         "url": f"/api/uploads/{filename}",
         "filename": filename

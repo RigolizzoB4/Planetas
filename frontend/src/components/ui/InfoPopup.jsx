@@ -144,7 +144,10 @@ export default function InfoPopup() {
     Neptune: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/56/Neptune_Full.jpg/320px-Neptune_Full.jpg'
   };
 
-  const displayImage = formData.imageUrl || planetImages[selectedObject.name] || null;
+  const apiBaseUrl = process.env.REACT_APP_BACKEND_URL || '';
+  const displayImage = formData.imageUrl
+    ? (formData.imageUrl.startsWith('/') ? `${apiBaseUrl}${formData.imageUrl}` : formData.imageUrl)
+    : (planetImages[selectedObject.name] || null);
 
   return (
     <div className="fixed right-4 top-20 bottom-20 w-96 z-50 animate-slide-in">
