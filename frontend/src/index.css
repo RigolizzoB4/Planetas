@@ -73,26 +73,26 @@
 
   html {
     scroll-behavior: smooth;
-    background-color: #05070B;
+    background-color: #000000;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-color: #05070B !important;
+    background-color: #000000 !important;
     font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
     margin: 0;
     padding: 0;
     overflow: hidden;
   }
 
-  /* Garantir fundo escuro na área 3D (evita branco no Netlify/iframe) */
+  /* Fundo preto na área 3D — evita branco / camada clara no Netlify */
   #root,
   main,
   main > div,
   [data-testid="solar-system-canvas"],
   [data-testid="solar-system-canvas"] canvas {
-    background-color: #05070B !important;
-    background: #05070B !important;
+    background-color: #000000 !important;
+    background: #000000 !important;
   }
 
   h1, h2, h3, h4, h5, h6 {

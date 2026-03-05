@@ -1,5 +1,7 @@
 # Texturas para o fundo (Via Láctea) e uso em deploy
 
+**Importante para Netlify:** No deploy (ex.: borealb4.netlify.app), o Solar System Scope **bloqueia** o carregamento de texturas por CORS. Por isso o fundo pode ficar preto sem Via Láctea e os planetas aparecem com **cores sólidas** (fallback) em vez de texturas. Para ter Via Láctea no Netlify, coloque `2k_stars_milky_way.jpg` nesta pasta (ver abaixo). O logo do Sol usa `public/logo-b4-branco.png` quando o backend não está disponível.
+
 Para o **fundo com Via Láctea** aparecer no site em produção (Netlify, Vercel, etc.), coloque aqui a textura. Assim ela é servida pelo mesmo domínio e não depende de CORS de sites externos.
 
 ## Via Láctea (obrigatório para o fundo estelar)

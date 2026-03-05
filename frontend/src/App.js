@@ -55,7 +55,7 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-background" style={{ background: '#05070B' }}>
+    <div className="w-screen h-screen overflow-hidden bg-background" style={{ background: '#000000' }}>
       {/* Header */}
       <Header isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} />
       {/* Aviso quando está usando dados padrão (backend offline) */}
@@ -67,11 +67,11 @@ function App() {
       )}
       
       {/* Main content — fundo escuro fixo para não ficar branco sem backend */}
-      <main className={`absolute inset-0 pt-14 transition-all duration-300 ${sidebarOpen ? 'pl-72' : 'pl-0'}`} style={{ background: '#05070B' }}>
+      <main className={`absolute inset-0 pt-14 transition-all duration-300 ${sidebarOpen ? 'pl-72' : 'pl-0'}`} style={{ background: '#000000' }}>
         {/* 3D Solar System - Photorealistic */}
-        <div className="w-full h-full" style={{ background: '#05070B' }}>
+        <div className="w-full h-full" style={{ background: '#000000' }}>
           {isLoading ? (
-            <div className="w-full h-full flex items-center justify-center" style={{ background: '#05070B' }}>
+            <div className="w-full h-full flex items-center justify-center" style={{ background: '#000000' }}>
               <div className="flex flex-col items-center gap-4">
                 <div className="relative">
                   <div className="w-24 h-24 rounded-full animate-pulse" style={{ 

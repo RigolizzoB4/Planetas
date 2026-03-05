@@ -51,7 +51,8 @@ function getDefaultObjects() {
     { name: 'Titan', moduleName: 'Message Queue' },
     { name: 'Enceladus', moduleName: 'Log Aggregator' },
     { name: 'Moon', moduleName: 'Config Server' },
-    { name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' }
+    { name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' },
+    { name: 'Jason-2', moduleName: 'Altímetro oceânico' }
   ];
   const satellites = satelliteModules.map(({ name, moduleName }) => ({
     id: `default-sat-${name.toLowerCase().replace(/\s/g, '-')}`,

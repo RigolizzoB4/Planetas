@@ -220,6 +220,7 @@ const TEX = {
   Pluto: `${SOLAR_SCOPE_8K}2k_pluto.jpg`
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
+const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 // Via Láctea: local primeiro (evita CORS no Netlify/outros hosts), depois fallback externo
 const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
@@ -244,7 +245,7 @@ const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 9;
 const ASTEROID_BELT_INNER = 30;
 const ASTEROID_BELT_OUTER = 38;
 
-// ==================== SATELLITE CONFIG (real moons, scientific) ====================
+// ==================== SATELLITE CONFIG (luas + Aurora 7 + Jason-2) ====================
 const SATELLITES = [
   { name: 'Phobos',    module: 'Auth API',             color: 0x8B7355, size: 0.10, rough: 0.95, metal: 0.05, irregular: true },
   { name: 'Deimos',    module: 'Payment Gateway',      color: 0x7A6B5A, size: 0.07, rough: 0.95, metal: 0.05, irregular: true },
@@ -253,7 +254,9 @@ const SATELLITES = [
   { name: 'Callisto',  module: 'Cache Layer',          color: 0x6B5E4F, size: 0.20, rough: 0.85, metal: 0.05, irregular: false },
   { name: 'Titan',     module: 'Message Queue',        color: 0xE0A848, size: 0.22, rough: 0.45, metal: 0.00, irregular: false },
   { name: 'Enceladus', module: 'Log Aggregator',       color: 0xDEDEDE, size: 0.10, rough: 0.15, metal: 0.10, irregular: false },
-  { name: 'Moon',      module: 'Config Server',        color: 0xA0A0A0, size: 0.27, rough: 0.90, metal: 0.05, irregular: false }
+  { name: 'Moon',      module: 'Config Server',        color: 0xA0A0A0, size: 0.27, rough: 0.90, metal: 0.05, irregular: false },
+  { name: 'Aurora 7',  module: 'Nave B4 ERD-FX',       color: 0xff6b35, size: 0.20, rough: 0.5, metal: 0.3, irregular: false },
+  { name: 'Jason-2',   module: 'Altímetro oceânico',   color: 0x1e88e5, size: 0.18, rough: 0.6, metal: 0.4, irregular: false, style: 'jason2' }
 ];
 
 // ==================== PBR MAP GENERATORS ====================
@@ -314,6 +317,28 @@ function constMap(val) {
 }
 
 // ==================== SCENE BUILDERS ====================
+// Via Láctea extra: 20k estrelas brancas (funciona no Netlify, estático)
+function createStarfield() {
+  const geometry = new THREE.BufferGeometry();
+  const vertices = [];
+  for (let i = 0; i < 20000; i++) {
+    vertices.push(
+      (Math.random() - 0.5) * 2400,
+      (Math.random() - 0.5) * 2400,
+      (Math.random() - 0.5) * 2400
+    );
+  }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const material = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 1.2,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.9
+  });
+  return new THREE.Points(geometry, material);
+}
+
 function createStars(scene, loader) {
   // Via Láctea: esfera de fundo com textura realista (estilo Emergent / NASA)
   const milkyWayRadius = 1200;
@@ -405,10 +430,15 @@ function createSun(scene, loader, R) {
   const coreMesh = new THREE.Mesh(coreGeo, coreMat);
   coreMesh.renderOrder = 998;
 
-  // 3. LOGO B4 — sprite billboard (sempre virado para a câmera). Só carrega do backend se API estiver definida (evita 404 no Netlify).
-  const logoTex = API
-    ? loader.load(`${API}/api/textures/logo_b4.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; })
-    : (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
+  // 3. LOGO B4 — sprite no centro do Sol. API se existir; senão /logo-b4-branco.png (public); fallback 1x1
+  const logoPlaceholder = () => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
+  let logoTex = logoPlaceholder();
+  if (API) {
+    loader.load(`${API}/api/textures/logo_b4.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; });
+  } else {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    loader.load(`${origin}/logo-b4-branco.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; }, undefined, () => { logoSprite.material.map = logoPlaceholder(); });
+  }
   const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: logoTex,
     transparent: true,
@@ -612,7 +642,7 @@ function updateAuroras(auroras, delta) {
 
 // Estilo dos satélites artificiais: "compact" (cubo + painéis discretos) — não é mais Jason-2
 const SATELLITE_STYLE = 'compact'; // 'compact' = estilo moderno; mantido código legado comentado se precisar Jason-2
-const SATELLITE_SCALE_FACTOR = 1 / 3; // 1/3 do tamanho anterior (pedido do usuário)
+const SATELLITE_SCALE_FACTOR = 0.55; // Luas visíveis e proporcionais, maiores que antes
 
 function createSatelliteModel(cfg) {
   const group = new THREE.Group();
@@ -707,7 +737,13 @@ function createPlanet(scene, loader, name, cfg, R) {
   });
   mat.metalnessMap = constMap(cfg.metal);
 
-  const ensureColor = () => { mat.color.setHex(cfg.color); mat.needsUpdate = true; };
+  const ensureColor = () => {
+    mat.map = null;
+    mat.normalMap = null;
+    mat.roughnessMap = null;
+    mat.color.setHex(cfg.color);
+    mat.needsUpdate = true;
+  };
 
   if (TEX[name]) {
     const fallback2k = TEX[name].replace(/8k_/g, '2k_');
@@ -722,7 +758,13 @@ function createPlanet(scene, loader, name, cfg, R) {
       mat.needsUpdate = true;
     };
     const primaryUrl = TEX_NASA[name] || TEX[name];
-    const tryFallbackSSS = () => { loader.load(TEX[name], applyTex, undefined, () => { ensureColor(); if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex); }); };
+    const tryFallbackSSS = () => {
+      loader.load(TEX[name], applyTex, undefined, () => {
+        ensureColor();
+        if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex, undefined, ensureColor);
+        else ensureColor();
+      });
+    };
     loader.load(primaryUrl, applyTex, undefined, () => { ensureColor(); tryFallbackSSS(); });
   }
 
@@ -935,6 +977,39 @@ function createParkerSolarProbe(solarGroup, R) {
   R.parkerGroup = group;
 }
 
+// Atlas 7 (Aurora 7) — nave Mercury/Atlas 7 da NASA (GLB com cor)
+const AURORA_7_ORBIT_RADIUS = 22;
+const AURORA_7_SPEED = 0.02;
+function createAtlasAurora7(solarGroup, loader, R) {
+  const group = new THREE.Group();
+  group.name = 'Aurora7';
+  group.userData = { clickable: true, name: 'Aurora 7' };
+  R.aurora7Angle = Math.random() * Math.PI * 2;
+  group.position.x = Math.cos(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
+  group.position.z = Math.sin(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
+
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.load(ATLAS_7_AURORA_7_GLB, (gltf) => {
+    const model = gltf.scene;
+    model.traverse((c) => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+        c.userData = { clickable: true, name: 'Aurora 7' };
+      }
+    });
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 0.35 / maxDim;
+    model.scale.setScalar(scale);
+    group.add(model);
+  }, undefined, () => { /* fallback: opcional */ });
+
+  solarGroup.add(group);
+  R.aurora7Group = group;
+}
+
 // ==================== COMPONENT ====================
 export default function SolarSystemPhotorealistic() {
   const containerRef = useRef(null);
@@ -959,13 +1034,15 @@ export default function SolarSystemPhotorealistic() {
     R.planets = {}; R.satellites = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
+    R.aurora7Group = null; R.aurora7Angle = 0;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
 
     // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#05070B');
+    scene.background = new THREE.Color(0x000000);
     R.scene = scene;
+    scene.add(createStarfield());
 
     const solarGroup = new THREE.Group();
     solarGroup.name = 'SolarSystemRoot';
@@ -984,15 +1061,15 @@ export default function SolarSystemPhotorealistic() {
     });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x05070B, 1);
+    renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 0.92;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.pointerEvents = 'auto';
-    renderer.domElement.style.backgroundColor = '#05070B';
+    renderer.domElement.style.backgroundColor = '#000000';
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
@@ -1020,8 +1097,8 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.visibleEdgeColor.set('#FFFFFF');
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
-    // Soft bloom: high threshold captures only the Sun's HDR emission, low strength avoids neon
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.3, 0.3, 0.92));
+    // Bloom suave: threshold alto = só o Sol brilha; strength baixo evita "camada branca" sobre a cena
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.25, 0.96));
     composer.addPass(new SMAAPass(w * pr, h * pr));
     composer.addPass(new OutputPass());
     R.composer = composer;
@@ -1072,6 +1149,7 @@ export default function SolarSystemPhotorealistic() {
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
     createParkerSolarProbe(solarGroup, R);
+    createAtlasAurora7(solarGroup, loader, R);
 
     // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
     let introFallbackId;
@@ -1101,8 +1179,7 @@ export default function SolarSystemPhotorealistic() {
         ease: 'power2.inOut',
         delay: 2,
         onComplete: onIntroDone,
-        onInterrupt: onIntroDone,
-        onKill: onIntroDone
+        onInterrupt: onIntroDone
       });
       const targetTween = gsap.to(controls.target, {
         x: auroraTarget.x,
@@ -1372,6 +1449,12 @@ export default function SolarSystemPhotorealistic() {
         R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
       }
+      if (R.aurora7Group) {
+        R.aurora7Angle += AURORA_7_SPEED * timeSpeed * dt;
+        R.aurora7Group.position.x = Math.cos(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
+        R.aurora7Group.position.z = Math.sin(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
+        R.aurora7Group.rotation.y += 0.01 * timeSpeed * dt;
+      }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
     update();
@@ -1412,7 +1495,8 @@ export default function SolarSystemPhotorealistic() {
       'Sun Focus': { pos: [0, 15, 35], target: [0, 0, 0] },
       'Earth Focus': { pos: [25, 10, 25], target: [18, 0, 0] },
       'Satellite Ring': { pos: [18, 8, 18], target: [12, 0, 0] },
-      'Top View': { pos: [0, 150, 1], target: [0, 0, 0] }
+      'Top View': { pos: [0, 150, 1], target: [0, 0, 0] },
+      'Olho de Deus': { pos: [0, 180, 0.01], target: [0, 0, 0] }
     };
     const preset = viewMode === '2D' ? presets['Top View'] : (presets[cameraPreset] || presets['Overview']);
     const startPos = R.camera.position.clone();
@@ -1436,7 +1520,7 @@ export default function SolarSystemPhotorealistic() {
       style={{
         width: '100%',
         height: '100%',
-        background: '#05070B',
+        background: '#000000',
         position: 'relative',
         pointerEvents: 'auto',
         isolation: 'isolate'

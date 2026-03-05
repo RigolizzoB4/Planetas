@@ -22,6 +22,9 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>Emergent | Fullstack App</title>
+        <style type="text/css">
+          html, body, #root, main, main div, [data-testid="solar-system-canvas"], [data-testid="solar-system-canvas"] canvas { background: #000000 !important; background-color: #000000 !important; }
+        </style>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
         <!--
@@ -48,9 +51,9 @@
             }
         </script>
     </head>
-    <body style="background:#05070B; margin:0; min-height:100vh;">
+    <body style="background:#000000; margin:0; min-height:100vh;">
         <noscript>You need to enable JavaScript to run this app.</noscript>
-        <div id="root" style="background:#05070B; min-height:100vh;"></div>
+        <div id="root" style="background:#000000; min-height:100vh;"></div>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

@@ -22,9 +22,10 @@ export default function ControlsPanel() {
     'Sun Focus': Sun,
     'Earth Focus': Target,
     'Satellite Ring': Orbit,
-    'Top View': ScanEye
+    'Top View': ScanEye,
+    'Olho de Deus': Eye
   };
-  const cameraPresets = ['Overview', 'Sun Focus', 'Earth Focus', 'Satellite Ring', 'Top View'];
+  const cameraPresets = ['Overview', 'Sun Focus', 'Earth Focus', 'Satellite Ring', 'Top View', 'Olho de Deus'];
 
   return (
     <TooltipProvider delayDuration={300}>
