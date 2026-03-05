@@ -707,11 +707,14 @@ function createPlanet(scene, loader, name, cfg, R) {
   });
   mat.metalnessMap = constMap(cfg.metal);
 
+  const ensureColor = () => { mat.color.setHex(cfg.color); mat.needsUpdate = true; };
+
   if (TEX[name]) {
     const fallback2k = TEX[name].replace(/8k_/g, '2k_');
     const applyTex = (tex) => {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       mat.map = tex;
+      mat.color.setHex(cfg.color);
       const nMap = genNormalMap(tex.image, cfg.nStr);
       if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 0.3, cfg.nStr * 0.3); }
       const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
@@ -719,8 +722,8 @@ function createPlanet(scene, loader, name, cfg, R) {
       mat.needsUpdate = true;
     };
     const primaryUrl = TEX_NASA[name] || TEX[name];
-    const tryFallbackSSS = () => { loader.load(TEX[name], applyTex, undefined, () => { if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex); }); };
-    loader.load(primaryUrl, applyTex, undefined, () => { tryFallbackSSS(); });
+    const tryFallbackSSS = () => { loader.load(TEX[name], applyTex, undefined, () => { ensureColor(); if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex); }); };
+    loader.load(primaryUrl, applyTex, undefined, () => { ensureColor(); tryFallbackSSS(); });
   }
 
   const planet = new THREE.Mesh(new THREE.SphereGeometry(cfg.size, 64, 64), mat);
@@ -981,12 +984,14 @@ export default function SolarSystemPhotorealistic() {
     });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x05070B, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.9;
+    renderer.toneMappingExposure = 1.05;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    // Physically correct lights (default in Three.js r162+)
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.pointerEvents = 'auto';
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
@@ -1068,6 +1073,7 @@ export default function SolarSystemPhotorealistic() {
     createParkerSolarProbe(solarGroup, R);
 
     // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
+    let introFallbackId;
     const runIntro = () => {
       controls.enabled = false;
       R.isAnimatingFocus = true;
@@ -1076,6 +1082,16 @@ export default function SolarSystemPhotorealistic() {
         R.sunLayers.fxSprite.getWorldPosition(auroraTarget);
       }
       const camEnd = auroraTarget.clone().add(new THREE.Vector3(0, 8, 25));
+      const onIntroDone = () => {
+        if (introFallbackId) clearTimeout(introFallbackId);
+        introFallbackId = null;
+        controls.target.set(0, 0, 0);
+        controls.enabled = true;
+        R.isAnimatingFocus = false;
+        R.initialZoomDone = true;
+        R.focusTweens = null;
+        if (R.latestSetAuroraPanelOpen) R.latestSetAuroraPanelOpen(true);
+      };
       const camTween = gsap.to(camera.position, {
         x: camEnd.x,
         y: camEnd.y,
@@ -1083,14 +1099,9 @@ export default function SolarSystemPhotorealistic() {
         duration: 3.5,
         ease: 'power2.inOut',
         delay: 2,
-        onComplete: () => {
-          controls.target.set(0, 0, 0);
-          controls.enabled = true;
-          R.isAnimatingFocus = false;
-          R.initialZoomDone = true;
-          R.focusTweens = null;
-          if (R.latestSetAuroraPanelOpen) R.latestSetAuroraPanelOpen(true);
-        }
+        onComplete: onIntroDone,
+        onInterrupt: onIntroDone,
+        onKill: onIntroDone
       });
       const targetTween = gsap.to(controls.target, {
         x: auroraTarget.x,
@@ -1101,6 +1112,13 @@ export default function SolarSystemPhotorealistic() {
         delay: 2
       });
       R.focusTweens = [camTween, targetTween];
+      // Fallback: reativar mouse em 8s se a intro travar (ex.: Netlify/GSAP)
+      introFallbackId = setTimeout(() => {
+        if (!R.initialZoomDone) {
+          onIntroDone();
+          if (R.focusTweens?.length) R.focusTweens.forEach(t => t.kill());
+        }
+      }, 8000);
     };
     runIntro();
 
@@ -1282,6 +1300,7 @@ export default function SolarSystemPhotorealistic() {
     animate();
 
     return () => {
+      if (introFallbackId) clearTimeout(introFallbackId);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       controls.removeEventListener('start', onControlStart);
@@ -1413,7 +1432,14 @@ export default function SolarSystemPhotorealistic() {
     <div
       ref={containerRef}
       data-testid="solar-system-canvas"
-      style={{ width: '100%', height: '100%', background: '#05070B' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        background: '#05070B',
+        position: 'relative',
+        pointerEvents: 'auto',
+        isolation: 'isolate'
+      }}
     />
   );
 }
