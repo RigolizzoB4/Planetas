@@ -66,10 +66,10 @@ function App() {
         </div>
       )}
       
-      {/* Main content */}
-      <main className={`absolute inset-0 pt-14 transition-all duration-300 ${sidebarOpen ? 'pl-72' : 'pl-0'}`}>
+      {/* Main content — fundo escuro fixo para não ficar branco sem backend */}
+      <main className={`absolute inset-0 pt-14 transition-all duration-300 ${sidebarOpen ? 'pl-72' : 'pl-0'}`} style={{ background: '#05070B' }}>
         {/* 3D Solar System - Photorealistic */}
-        <div className="w-full h-full">
+        <div className="w-full h-full" style={{ background: '#05070B' }}>
           {isLoading ? (
             <div className="w-full h-full flex items-center justify-center" style={{ background: '#05070B' }}>
               <div className="flex flex-col items-center gap-4">

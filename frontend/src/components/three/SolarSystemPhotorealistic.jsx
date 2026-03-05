@@ -191,7 +191,7 @@ const ATMO_FRAG = `
 
 // ==================== TEXTURE URLS (8K - estilo NASA / Solar System Scope) ====================
 // Texturas realistas "papel de parede": 8K prioritário; fallback 2K. Fontes: NASA, ESA, Solar System Scope.
-const API = process.env.REACT_APP_BACKEND_URL;
+const API = process.env.REACT_APP_BACKEND_URL || '';
 const SOLAR_SCOPE_8K = 'https://www.solarsystemscope.com/textures/download/';
 const TEX = {
   Sun: `${SOLAR_SCOPE_8K}8k_sun.jpg`,
@@ -385,10 +385,10 @@ function createSun(scene, loader, R) {
   const coreMesh = new THREE.Mesh(coreGeo, coreMat);
   coreMesh.renderOrder = 998;
 
-  // 3. LOGO B4 — sprite billboard (sempre virado para a câmera)
-  const logoTex = loader.load(`${API}/api/textures/logo_b4.png`, (t) => {
-    t.colorSpace = THREE.SRGBColorSpace;
-  });
+  // 3. LOGO B4 — sprite billboard (sempre virado para a câmera). Só carrega do backend se API estiver definida (evita 404 no Netlify).
+  const logoTex = API
+    ? loader.load(`${API}/api/textures/logo_b4.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; })
+    : (() => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
   const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: logoTex,
     transparent: true,
