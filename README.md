@@ -34,7 +34,30 @@ Simulação interativa 3D do Sistema Solar com metáfora ERP/APIs, construída c
 ## 🌐 Ver online
 
 - **Local (no seu PC):** depois de rodar `yarn start` no frontend, acesse **[http://localhost:3000](http://localhost:3000)**.
-- **Produção:** após deploy (Vercel, Netlify, etc.), use a URL que o serviço fornecer (ex: `https://seu-app.vercel.app`).
+- **Produção:** o site está no **Netlify**. Toda vez que você publica (ver abaixo), o Netlify atualiza sozinho em 1–2 minutos.
+
+---
+
+## ☁️ Publicar o site (um comando)
+
+Para colocar suas alterações no ar:
+
+1. Abra o terminal na **pasta do projeto** (onde está este README).
+2. Rode **um** destes comandos:
+
+   ```powershell
+   npm run deploy
+   ```
+   ou, no PowerShell:
+   ```powershell
+   .\deploy.ps1
+   ```
+
+3. (Opcional) Se quiser uma mensagem de commit: `.\deploy.ps1 "Descrição da alteração"`.
+
+O script envia tudo para o GitHub; o **Netlify faz o deploy automaticamente** em seguida. Não precisa clicar em nada no Netlify — só dar push.
+
+**Resumo:** você altera o código aqui → roda `npm run deploy` → o site na nuvem atualiza sozinho.
 
 ---
 

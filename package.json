@@ -1,0 +1,7 @@
+{
+  "name": "planetas",
+  "private": true,
+  "scripts": {
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./deploy.ps1"
+  }
+}
