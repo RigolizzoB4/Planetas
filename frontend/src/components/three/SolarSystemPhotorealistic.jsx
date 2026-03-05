@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
 // ==================== GLSL SHADERS ====================
@@ -189,10 +190,21 @@ const ATMO_FRAG = `
   }
 `;
 
-// ==================== TEXTURE URLS (8K - estilo NASA / Solar System Scope) ====================
-// Texturas realistas "papel de parede": 8K prioritário; fallback 2K. Fontes: NASA, ESA, Solar System Scope.
+// ==================== TEXTURE URLS (NASA 3D Resources + Solar System Scope) ====================
+// Prioridade: NASA para Terra, Júpiter, Saturno (estilo Eyes); fallback Solar System Scope 8K/2K.
 const API = process.env.REACT_APP_BACKEND_URL || '';
+const NASA_3D_BASE = 'https://raw.githubusercontent.com/nasa/NASA-3D-Resources/master';
 const SOLAR_SCOPE_8K = 'https://www.solarsystemscope.com/textures/download/';
+// Texturas NASA (fotorrealistas) quando existem no repo; Mercury e Uranus só têm fallback SSS
+const TEX_NASA = {
+  Earth: `${NASA_3D_BASE}/Images%20and%20Textures/Earth%20(A)/Earth%20(A).jpg`,
+  Venus: `${NASA_3D_BASE}/Images%20and%20Textures/Venus/Venus.jpg`,
+  Mars: `${NASA_3D_BASE}/Images%20and%20Textures/Mars/Mars.jpg`,
+  Jupiter: `${NASA_3D_BASE}/Images%20and%20Textures/Jupiter/Jupiter.jpg`,
+  Saturn: `${NASA_3D_BASE}/Images%20and%20Textures/Saturn/Saturn.jpg`,
+  Neptune: `${NASA_3D_BASE}/Images%20and%20Textures/Neptune/Neptune.jpg`,
+  Pluto: `${NASA_3D_BASE}/Images%20and%20Textures/Pluto/Pluto.jpg`
+};
 const TEX = {
   Sun: `${SOLAR_SCOPE_8K}8k_sun.jpg`,
   Mercury: `${SOLAR_SCOPE_8K}8k_mercury.jpg`,
@@ -204,9 +216,13 @@ const TEX = {
   Saturn: `${SOLAR_SCOPE_8K}8k_saturn.jpg`,
   SaturnRing: `${SOLAR_SCOPE_8K}8k_saturn_ring_alpha.png`,
   Uranus: `${SOLAR_SCOPE_8K}8k_uranus.jpg`,
-  Neptune: `${SOLAR_SCOPE_8K}8k_neptune.jpg`
+  Neptune: `${SOLAR_SCOPE_8K}8k_neptune.jpg`,
+  Pluto: `${SOLAR_SCOPE_8K}2k_pluto.jpg`
 };
-const MILKY_WAY_URL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
+const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
+// Via Láctea: local primeiro (evita CORS no Netlify/outros hosts), depois fallback externo
+const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
+const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
 
 const SUN_RADIUS = 5.5;
 const GLOBAL_ROTATION_SPEED = 0.008;
@@ -220,7 +236,8 @@ const PLANETS = {
   Jupiter: { size: 2.8,  orbit: 42, speed: 0.013, rot: 0.045, color: 0xd8ca9d, rough: 0.6, metal: 0.0, nStr: 0.5 },
   Saturn:  { size: 2.3,  orbit: 58, speed: 0.0097, rot: 0.038, color: 0xead6b8, rough: 0.55, metal: 0.0, nStr: 0.5, rings: true },
   Uranus:  { size: 1.6,  orbit: 74, speed: 0.0068, rot: -0.03, color: 0xd1e7e7, rough: 0.4, metal: 0.0, nStr: 0.3 },
-  Neptune: { size: 1.5,  orbit: 90, speed: 0.0054, rot: 0.032, color: 0x5b5ddf, rough: 0.4, metal: 0.0, nStr: 0.3 }
+  Neptune: { size: 1.5,  orbit: 90, speed: 0.0054, rot: 0.032, color: 0x5b5ddf, rough: 0.4, metal: 0.0, nStr: 0.3 },
+  Pluto:   { size: 0.18, orbit: 100, speed: 0.004, rot: 0.008, color: 0xc4a574, rough: 0.8, metal: 0.0, nStr: 0.4 }
 };
 
 const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 9;
@@ -311,11 +328,14 @@ function createStars(scene, loader) {
   milkyWayMesh.name = 'MilkyWayBackground';
   scene.add(milkyWayMesh);
   if (loader) {
-    loader.load(MILKY_WAY_URL, (t) => {
+    const applyMilkyWay = (t) => {
       t.colorSpace = THREE.SRGBColorSpace;
       milkyWayMat.map = t;
       milkyWayMat.needsUpdate = true;
-    });
+    };
+    const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay);
+    // Tenta local primeiro (sem CORS no Netlify); se falhar, tenta externo
+    loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
   }
 
   const count = 15000;
@@ -698,9 +718,9 @@ function createPlanet(scene, loader, name, cfg, R) {
       if (rMap) mat.roughnessMap = rMap;
       mat.needsUpdate = true;
     };
-    loader.load(TEX[name], applyTex, undefined, () => {
-      if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex);
-    });
+    const primaryUrl = TEX_NASA[name] || TEX[name];
+    const tryFallbackSSS = () => { loader.load(TEX[name], applyTex, undefined, () => { if (fallback2k !== TEX[name]) loader.load(fallback2k, applyTex); }); };
+    loader.load(primaryUrl, applyTex, undefined, () => { tryFallbackSSS(); });
   }
 
   const planet = new THREE.Mesh(new THREE.SphereGeometry(cfg.size, 64, 64), mat);
@@ -880,6 +900,38 @@ function createAsteroids(scene, R) {
   R.planets['AsteroidBelt'] = mesh;
 }
 
+const PARKER_ORBIT_RADIUS = 6;
+const PARKER_SPEED = 0.04;
+
+function createParkerSolarProbe(solarGroup, R) {
+  const group = new THREE.Group();
+  group.name = 'ParkerSolarProbe';
+  group.userData = { clickable: true, name: 'Parker Solar Probe' };
+  R.parkerAngle = Math.random() * Math.PI * 2;
+  group.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
+  group.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
+
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.load(PARKER_SOLAR_PROBE_GLB, (gltf) => {
+    const model = gltf.scene;
+    model.traverse((c) => {
+      if (c.isMesh) {
+        c.castShadow = true; c.receiveShadow = true;
+        c.userData = { clickable: true, name: 'Parker Solar Probe' };
+      }
+    });
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scale = 0.25 / maxDim;
+    model.scale.setScalar(scale);
+    group.add(model);
+  }, undefined, () => { /* fallback: optional placeholder mesh */ });
+
+  solarGroup.add(group);
+  R.parkerGroup = group;
+}
+
 // ==================== COMPONENT ====================
 export default function SolarSystemPhotorealistic() {
   const containerRef = useRef(null);
@@ -903,6 +955,7 @@ export default function SolarSystemPhotorealistic() {
     // Reset mutable refs for re-init
     R.planets = {}; R.satellites = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
+    R.parkerGroup = null; R.parkerAngle = 0;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
 
@@ -1012,6 +1065,7 @@ export default function SolarSystemPhotorealistic() {
     createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
+    createParkerSolarProbe(solarGroup, R);
 
     // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
     const runIntro = () => {
@@ -1292,6 +1346,12 @@ export default function SolarSystemPhotorealistic() {
         s.mesh.position.z = Math.sin(s.angle) * s.orbitRadius;
         s.mesh.rotation.y += 0.02 * timeSpeed * dt;
       });
+      if (R.parkerGroup) {
+        R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
+        R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
+        R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
+        R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
+      }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
     update();

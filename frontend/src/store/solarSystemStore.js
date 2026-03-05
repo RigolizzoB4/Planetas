@@ -38,7 +38,8 @@ function getDefaultObjects() {
     base('Jupiter', 'planet', 35, 0.004, 2.5, 0.04, 'O maior planeta.', 'Data Warehouse'),
     base('Saturn', 'planet', 50, 0.003, 2.0, 0.038, 'Planeta dos anéis.', 'Integration Hub'),
     base('Uranus', 'planet', 65, 0.002, 1.5, 0.03, 'Planeta azul-esverdeado.', 'Backup'),
-    base('Neptune', 'planet', 80, 0.001, 1.4, 0.032, 'Planeta mais distante.', 'Archive')
+    base('Neptune', 'planet', 80, 0.001, 1.4, 0.032, 'Planeta mais distante.', 'Archive'),
+    base('Pluto', 'planet', 100, 0.004, 0.18, 0.008, 'Planeta anão; New Horizons.', 'Archive')
   ];
   // Satélites com módulos alinhados ao Emergent (stack de tecnologia)
   const satelliteModules = [
@@ -65,7 +66,20 @@ function getDefaultObjects() {
     lastModified: now,
     version: 1
   }));
-  return [sun, ...planets, ...satellites];
+  const parker = {
+    id: 'default-parker-solar-probe',
+    name: 'Parker Solar Probe',
+    type: 'satellite',
+    description: 'Sonda da NASA que “toca” o Sol. Estuda a coroa solar e o vento solar. Lançada em 2018.',
+    customFields: { moduleName: 'Parker Solar Probe', endpoints: [], apiType: 'REST', status: 'active' },
+    orbitRadius: 6,
+    orbitSpeed: 0.04,
+    scale: 0.25,
+    position: { x: 0, y: 0, z: 0 },
+    lastModified: now,
+    version: 1
+  };
+  return [sun, ...planets, ...satellites, parker];
 }
 
 export const useSolarSystemStore = create((set, get) => ({

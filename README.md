@@ -59,6 +59,18 @@ O script envia tudo para o GitHub; o **Netlify faz o deploy automaticamente** em
 
 **Resumo:** você altera o código aqui → roda `npm run deploy` → o site na nuvem atualiza sozinho.
 
+### Reproduzir todos os detalhes (Via Láctea, fundo estelar) no Netlify
+
+O código já está no GitHub; no deploy, texturas que vêm de sites externos (ex.: Solar System Scope) podem ser bloqueadas por CORS e o fundo fica só escuro. Para o **fundo com Via Láctea** aparecer igual ao local:
+
+1. Baixe a textura em: https://www.solarsystemscope.com/textures/download/2k_stars_milky_way.jpg  
+2. Salve como **`frontend/public/textures/2k_stars_milky_way.jpg`**  
+3. Faça commit e push (ou rode `npm run deploy`).
+
+Assim a textura é servida pelo próprio site e não depende de CORS. Instruções detalhadas: **`frontend/public/textures/README.md`**.
+
+Não é preciso mudar de host (Vercel, etc.): o Netlify consegue reproduzir tudo; o que importa é ter essa textura no repositório quando o externo não carrega.
+
 ---
 
 ## 🚀 Como Executar
@@ -153,7 +165,9 @@ Copie os exemplos e ajuste se necessário:
 
 ## 📜 Atribuição
 
-Texturas cortesia de [Solar System Scope](https://www.solarsystemscope.com) - CC BY 4.0
+- Texturas planetas (Terra, Júpiter, Saturno) e modelo 3D Parker Solar Probe: [NASA 3D Resources](https://github.com/nasa/NASA-3D-Resources) (domínio público / NASA Media Guidelines).
+- Demais texturas e Via Láctea: [Solar System Scope](https://www.solarsystemscope.com) - CC BY 4.0.
+- Inspiração visual: [NASA Eyes](https://science.nasa.gov/eyes/).
 
 ## 📄 Licença
 
