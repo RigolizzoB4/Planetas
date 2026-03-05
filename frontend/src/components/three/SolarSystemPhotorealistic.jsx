@@ -992,12 +992,13 @@ export default function SolarSystemPhotorealistic() {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.pointerEvents = 'auto';
+    renderer.domElement.style.backgroundColor = '#05070B';
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
     // Sun is the ONLY primary light source — inverse-square falloff (decay=2)
-    // High intensity to clearly illuminate even distant planets via tone mapping compression
-    const sunLight = new THREE.PointLight(0xFFF8E8, 12000, 0, 2);
+    // High intensity so planets (and fallback colors) stay visible
+    const sunLight = new THREE.PointLight(0xFFF8E8, 18000, 0, 2);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(2048, 2048);
     sunLight.shadow.camera.near = 0.5;

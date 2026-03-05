@@ -85,6 +85,16 @@
     overflow: hidden;
   }
 
+  /* Garantir fundo escuro na área 3D (evita branco no Netlify/iframe) */
+  #root,
+  main,
+  main > div,
+  [data-testid="solar-system-canvas"],
+  [data-testid="solar-system-canvas"] canvas {
+    background-color: #05070B !important;
+    background: #05070B !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Exo 2', sans-serif;
     font-weight: 600;
