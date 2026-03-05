@@ -33,7 +33,7 @@ function App() {
     } else {
       document.exitFullscreen();
     }
-  };fica assim?
+  };
 
   if (error) {
     return (
