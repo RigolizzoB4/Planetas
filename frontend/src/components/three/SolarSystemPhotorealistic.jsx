@@ -225,6 +225,13 @@ const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%20
 const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
 
+// No Netlify o Solar System Scope bloqueia por CORS. Se as texturas estiverem em public/textures/, o site usa elas (mesma origem = sem CORS).
+function getLocalTexUrl(sssUrl) {
+  if (typeof window === 'undefined') return null;
+  const filename = sssUrl.split('/').pop();
+  return `${window.location.origin}/textures/${filename}`;
+}
+
 const SUN_RADIUS = 5.5;
 const GLOBAL_ROTATION_SPEED = 0.008;
 
@@ -408,7 +415,11 @@ function createSun(scene, loader, R) {
     fragmentShader: SUN_FRAG
   });
   R.sunMat = sunMat;
-  loader.load(TEX.Sun, (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; }, undefined, () => { loader.load(TEX.Sun.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; }); });
+  const applySunTex = (t) => { t.colorSpace = THREE.SRGBColorSpace; sunMat.uniforms.uTex.value = t; sunMat.uniforms.uHasTex.value = 1; };
+  const sunFallback2k = TEX.Sun.replace(/8k_/g, '2k_');
+  const trySunSSS = () => loader.load(TEX.Sun, applySunTex, undefined, () => loader.load(sunFallback2k, applySunTex));
+  const trySunLocal2k = () => loader.load(getLocalTexUrl(sunFallback2k) || sunFallback2k, applySunTex, undefined, trySunSSS);
+  loader.load(getLocalTexUrl(TEX.Sun) || TEX.Sun, applySunTex, undefined, trySunLocal2k);
 
   const photo = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS, 64, 64), sunMat);
   photo.name = 'Sun';
@@ -765,7 +776,16 @@ function createPlanet(scene, loader, name, cfg, R) {
         else ensureColor();
       });
     };
-    loader.load(primaryUrl, applyTex, undefined, () => { ensureColor(); tryFallbackSSS(); });
+    const tryPrimary = () => loader.load(primaryUrl, applyTex, undefined, () => { ensureColor(); tryFallbackSSS(); });
+    const local8k = getLocalTexUrl(TEX[name]);
+    const local2k = getLocalTexUrl(fallback2k);
+    // Sempre tenta local primeiro (Netlify = sem CORS); depois NASA/SSS
+    if (local8k) {
+      loader.load(local8k, applyTex, undefined, () => {
+        if (local2k && local2k !== local8k) loader.load(local2k, applyTex, undefined, tryPrimary);
+        else tryPrimary();
+      });
+    } else tryPrimary();
   }
 
   const planet = new THREE.Mesh(new THREE.SphereGeometry(cfg.size, 64, 64), mat);
@@ -792,9 +812,9 @@ function createPlanet(scene, loader, name, cfg, R) {
     const ringMat = new THREE.MeshStandardMaterial({
       color: 0xC9B896, side: THREE.DoubleSide, transparent: true, opacity: 0.8, roughness: 0.8, metalness: 0.0
     });
-    loader.load(TEX.SaturnRing, (t) => {
-      t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true;
-    }, undefined, () => { loader.load(TEX.SaturnRing.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; }); });
+    const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
+    const ring2k = TEX.SaturnRing.replace(/8k_/g, '2k_');
+    loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing))));
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = Math.PI / 2.5; ring.receiveShadow = true;
     planet.add(ring);
@@ -803,7 +823,9 @@ function createPlanet(scene, loader, name, cfg, R) {
   // Earth clouds
   if (cfg.clouds) {
     const cloudMat = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false, roughness: 1.0, metalness: 0.0 });
-    loader.load(TEX.EarthClouds, (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; }, undefined, () => { loader.load(TEX.EarthClouds.replace(/8k_/g, '2k_'), (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; }); });
+    const applyCloud = (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; };
+    const cloud2k = TEX.EarthClouds.replace(/8k_/g, '2k_');
+    loader.load(getLocalTexUrl(TEX.EarthClouds) || TEX.EarthClouds, applyCloud, undefined, () => loader.load(getLocalTexUrl(cloud2k) || cloud2k, applyCloud, undefined, () => loader.load(TEX.EarthClouds, applyCloud, undefined, () => loader.load(cloud2k, applyCloud))));
     const clouds = new THREE.Mesh(new THREE.SphereGeometry(cfg.size * 1.02, 64, 64), cloudMat);
     planet.add(clouds);
     R.planets['EarthClouds'] = clouds;
@@ -1373,6 +1395,9 @@ export default function SolarSystemPhotorealistic() {
       }
 
       pushCameraOutOfBodies();
+      // Garantir fundo preto a cada frame (evita branco no Netlify/cache)
+      renderer.setClearColor(0x000000, 1);
+      if (scene.background) scene.background.setHex(0x000000);
       composer.render();
     };
     animate();
