@@ -55,7 +55,7 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-background">
+    <div className="w-screen h-screen overflow-hidden bg-background" style={{ background: '#05070B' }}>
       {/* Header */}
       <Header isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} />
       {/* Aviso quando está usando dados padrão (backend offline) */}
