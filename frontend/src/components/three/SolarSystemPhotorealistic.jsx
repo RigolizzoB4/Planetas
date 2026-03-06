@@ -398,7 +398,7 @@ function createSkyboxLayers(scene, loader) {
     ctx.fillStyle = '#05070b';
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 8000; i++) {
+    for (let i = 0; i < 14000; i++) {
       const x = Math.floor(Math.random() * w);
       const y = Math.floor(Math.random() * h);
       const r = Math.random() > 0.92 ? 1.2 : Math.random() > 0.7 ? 0.8 : 0.4;
@@ -436,12 +436,12 @@ function createSkyboxLayers(scene, loader) {
   applyProceduralStarfield();
   if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
 
-  // —— Camada 2: nebulosas muito sutis (overlay, opacidade baixa)
+  // —— Camada 2: nebulosas sutis (mais visíveis para fundo realista)
   const layer2Mat = new THREE.MeshBasicMaterial({
     map: null,
     side: THREE.BackSide,
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.26,
     depthWrite: false,
     fog: false
   });
@@ -456,8 +456,8 @@ function createSkyboxLayers(scene, loader) {
     layer2Mat.needsUpdate = true;
   }, undefined, () => {});
 
-  // —— Camada 3: star particles pequenas (parallax)
-  const PARTICLE_COUNT = 2500;
+  // —— Camada 3: mais estrelas (parallax) — densidade maior para fundo mais realista
+  const PARTICLE_COUNT = 5000;
   const pos = new Float32Array(PARTICLE_COUNT * 3);
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     const r = 800 + Math.random() * 1200;
@@ -474,7 +474,7 @@ function createSkyboxLayers(scene, loader) {
     size: 1,
     sizeAttenuation: false,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.62,
     depthWrite: false,
     map: SOFT_POINT_TEX,
     alphaMap: SOFT_POINT_TEX,
@@ -485,12 +485,12 @@ function createSkyboxLayers(scene, loader) {
   layer3.renderOrder = -8;
   scene.add(layer3);
 
-  // —— Camada 4: leve brilho da Via Láctea (opcional)
+  // —— Camada 4: Via Láctea mais visível
   const layer4Mat = new THREE.MeshBasicMaterial({
     map: null,
     side: THREE.BackSide,
     transparent: true,
-    opacity: 0.12,
+    opacity: 0.26,
     depthWrite: false,
     fog: false
   });
@@ -504,6 +504,35 @@ function createSkyboxLayers(scene, loader) {
     layer4Mat.map = t;
     layer4Mat.needsUpdate = true;
   }, undefined, () => {});
+
+  // —— Camada 5: “Olho de Deus” (nebulosa Helix) — mancha suave procedural no céu
+  const eyeCanvas = document.createElement('canvas');
+  const eyeW = 512, eyeH = 256;
+  eyeCanvas.width = eyeW; eyeCanvas.height = eyeH;
+  const eyeCtx = eyeCanvas.getContext('2d');
+  const eyeGrad = eyeCtx.createRadialGradient(eyeW * 0.5, eyeH * 0.5, 0, eyeW * 0.5, eyeH * 0.5, eyeW * 0.45);
+  eyeGrad.addColorStop(0, 'rgba(180, 200, 255, 0.35)');
+  eyeGrad.addColorStop(0.4, 'rgba(120, 140, 200, 0.12)');
+  eyeGrad.addColorStop(0.7, 'rgba(80, 100, 160, 0.04)');
+  eyeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  eyeCtx.fillStyle = eyeGrad;
+  eyeCtx.fillRect(0, 0, eyeW, eyeH);
+  const eyeTex = new THREE.CanvasTexture(eyeCanvas);
+  applySkyboxTex(eyeTex);
+  const layer5Mat = new THREE.MeshBasicMaterial({
+    map: eyeTex,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    fog: false
+  });
+  const layer5 = new THREE.Mesh(skyGeo.clone(), layer5Mat);
+  layer5.name = 'SkyboxLayer5_EyeOfGod';
+  layer5.renderOrder = -6;
+  layer5.rotation.y = Math.PI * 0.35;
+  layer5.rotation.x = 0.12;
+  scene.add(layer5);
 
   return layer3;
 }
@@ -1072,7 +1101,13 @@ function createAsteroids(scene, R) {
   const count = 3000, inner = ASTEROID_BELT_INNER, outer = ASTEROID_BELT_OUTER, beltH = 2;
   const mesh = new THREE.InstancedMesh(
     new THREE.DodecahedronGeometry(1, 0),
-    new THREE.MeshStandardMaterial({ color: 0x8B7355, roughness: 0.95, metalness: 0.1, flatShading: true }),
+    new THREE.MeshStandardMaterial({
+      color: 0xa89078,
+      roughness: 0.75,
+      metalness: 0.08,
+      flatShading: true,
+      envMapIntensity: 0.4
+    }),
     count
   );
   mesh.name = 'AsteroidBelt'; mesh.castShadow = true; mesh.receiveShadow = true;
@@ -1085,14 +1120,58 @@ function createAsteroids(scene, R) {
     dummy.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
     dummy.scale.setScalar(s); dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
-    const v = 0.6 + Math.random() * 0.4;
-    color.setRGB(0.55 * v, 0.45 * v, 0.33 * v);
+    const v = 0.72 + Math.random() * 0.28;
+    color.setRGB(0.68 * v, 0.58 * v, 0.45 * v);
     mesh.setColorAt(i, color);
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   scene.add(mesh);
   R.planets['AsteroidBelt'] = mesh;
+}
+
+// Cometas com cauda — trajetórias longe do sistema, passando pela cena (mais realismo)
+const COMET_TAIL_LENGTH = 18;
+const COMET_SPEED = 0.012;
+function createComets(scene, R) {
+  const comets = [];
+  const paths = [
+    { rx: 140, rz: 90, ry: 25, phase: 0 },
+    { rx: 100, rz: 120, ry: -20, phase: Math.PI * 0.6 }
+  ];
+  paths.forEach((path, idx) => {
+    const group = new THREE.Group();
+    group.name = `Comet${idx}`;
+    const headGeo = new THREE.SphereGeometry(0.25, 10, 10);
+    const headMat = new THREE.MeshBasicMaterial({ color: 0xeeddcc });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 0, 0);
+    group.add(head);
+    const trailPoints = [];
+    for (let i = 0; i < COMET_TAIL_LENGTH; i++) trailPoints.push(new THREE.Vector3(0, 0, 0));
+    const trailGeo = new THREE.BufferGeometry().setFromPoints(trailPoints);
+    const trailMat = new THREE.LineBasicMaterial({
+      color: 0xaaccff,
+      transparent: true,
+      opacity: 0.5,
+      linewidth: 1
+    });
+    const trail = new THREE.Line(trailGeo, trailMat);
+    trail.frustumCulled = false;
+    group.add(trail);
+    scene.add(group);
+    comets.push({
+      group,
+      trailPoints,
+      trailGeo,
+      angle: path.phase,
+      speed: COMET_SPEED * (idx === 0 ? 1 : 0.85),
+      rx: path.rx,
+      rz: path.rz,
+      ry: path.ry
+    });
+  });
+  R.comets = comets;
 }
 
 const PARKER_ORBIT_RADIUS = 6;
@@ -1186,6 +1265,7 @@ export default function SolarSystemPhotorealistic() {
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
     R.aurora7Group = null; R.aurora7Angle = 0;
+    R.comets = null;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
 
@@ -1213,7 +1293,7 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.58;
+    renderer.toneMappingExposure = 0.64;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1234,10 +1314,10 @@ export default function SolarSystemPhotorealistic() {
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.radius = 4;
     solarGroup.add(sunLight);
-    // Parte de trás: sombra suave (não preta) — ambient + hemisphere altos para costas visíveis e graduais
-    const ambientFill = new THREE.AmbientLight(0xb0c4e0, 0.38);
+    // Parte de trás e planetas escuros (Plutão, Netuno etc.): mais fill para todos ficarem visíveis
+    const ambientFill = new THREE.AmbientLight(0xb8cce8, 0.65);
     scene.add(ambientFill);
-    const hemilight = new THREE.HemisphereLight(0x7098cc, 0x283548, 0.58);
+    const hemilight = new THREE.HemisphereLight(0x78a0d0, 0x385070, 0.92);
     scene.add(hemilight);
 
     // Post-processing: Bloom + SMAA + Output
@@ -1304,6 +1384,7 @@ export default function SolarSystemPhotorealistic() {
     createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
+    createComets(scene, R);
     createParkerSolarProbe(solarGroup, R);
     createAtlasAurora7(solarGroup, loader, R);
 
@@ -1621,6 +1702,27 @@ export default function SolarSystemPhotorealistic() {
         R.aurora7Group.rotation.y += 0.01 * timeSpeed * dt;
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
+      if (R.comets?.length) {
+        R.comets.forEach((c) => {
+          c.angle += c.speed * timeSpeed * dt;
+          const a = c.angle;
+          const x = c.rx * Math.cos(a);
+          const z = c.rz * Math.sin(a);
+          const y = c.ry * Math.sin(a * 0.7);
+          c.group.position.set(x, y, z);
+          const velX = -c.rx * Math.sin(a);
+          const velZ = c.rz * Math.cos(a);
+          const velY = c.ry * 0.7 * Math.cos(a * 0.7);
+          const len = Math.sqrt(velX * velX + velY * velY + velZ * velZ) || 1;
+          const step = 18 / len;
+          c.trailPoints[0].set(0, 0, 0);
+          for (let i = 1; i < c.trailPoints.length; i++) {
+            c.trailPoints[i].set(-velX * step * i, -velY * step * i, -velZ * step * i);
+          }
+          c.trailGeo.setFromPoints(c.trailPoints);
+          c.trailGeo.attributes.position.needsUpdate = true;
+        });
+      }
     };
     update();
     return () => cancelAnimationFrame(animId);
