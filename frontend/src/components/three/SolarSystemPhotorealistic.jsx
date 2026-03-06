@@ -324,7 +324,7 @@ function constMap(val) {
 }
 
 // ==================== SCENE BUILDERS ====================
-// Via Láctea extra: 20k estrelas brancas (funciona no Netlify, estático)
+// 20k estrelas de fundo — sizeAttenuation false = sempre do mesmo tamanho (sempre visíveis)
 function createStarfield() {
   const geometry = new THREE.BufferGeometry();
   const vertices = [];
@@ -338,12 +338,15 @@ function createStarfield() {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   const material = new THREE.PointsMaterial({
     color: 0xffffff,
-    size: 1.2,
-    sizeAttenuation: true,
+    size: 4,
+    sizeAttenuation: false,
     transparent: true,
-    opacity: 0.9
+    opacity: 1,
+    depthWrite: false
   });
-  return new THREE.Points(geometry, material);
+  const points = new THREE.Points(geometry, material);
+  points.renderOrder = -10;
+  return points;
 }
 
 function createStars(scene, loader) {
@@ -358,6 +361,7 @@ function createStars(scene, loader) {
   });
   const milkyWayMesh = new THREE.Mesh(milkyWayGeo, milkyWayMat);
   milkyWayMesh.name = 'MilkyWayBackground';
+  milkyWayMesh.renderOrder = -10;
   scene.add(milkyWayMesh);
   if (loader) {
     const applyMilkyWay = (t) => {
@@ -365,9 +369,17 @@ function createStars(scene, loader) {
       milkyWayMat.map = t;
       milkyWayMat.needsUpdate = true;
     };
-    const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay);
-    // Tenta local primeiro (sem CORS no Netlify); se falhar, tenta externo
-    loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
+    const onMilkyWayFail = () => {
+      if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
+    };
+    const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
+    const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
+    // Ordem Emergent: 1) backend (API) → 2) public/textures/ (Netlify) → 3) externo SSS (CORS no Netlify)
+    if (API) {
+      loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal);
+    } else {
+      loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
+    }
   }
 
   const count = 15000;
@@ -396,9 +408,20 @@ function createStars(scene, loader) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.5, vertexColors: true, transparent: true, opacity: 0.9, sizeAttenuation: true })));
+  const starsPoints = new THREE.Points(geo, new THREE.PointsMaterial({
+    size: 2,
+    vertexColors: true,
+    transparent: true,
+    opacity: 1,
+    sizeAttenuation: false,
+    depthWrite: false
+  }));
+  starsPoints.renderOrder = -5;
+  scene.add(starsPoints);
 }
 
+// Programação completa do Sol com logo (spec): fotosfera → core + camadas internas + logo B4 + ERD-FX → glow.
+// Logo visível através do Sol: depthTest false, renderOrder 999; breathing 0.85 + 0.15*sin(elapsed*0.8).
 function createSun(scene, loader, R) {
   const group = new THREE.Group();
   group.name = 'SunGroup';
@@ -409,7 +432,7 @@ function createSun(scene, loader, R) {
       uTime: { value: 0 },
       uTex: { value: null },
       uHasTex: { value: 0 },
-      uEmission: { value: 2.8 }
+      uEmission: { value: 2.0 }
     },
     vertexShader: VERT,
     fragmentShader: SUN_FRAG
@@ -441,23 +464,38 @@ function createSun(scene, loader, R) {
   const coreMesh = new THREE.Mesh(coreGeo, coreMat);
   coreMesh.renderOrder = 998;
 
-  // 3. LOGO B4 — sprite no centro do Sol. API se existir; senão /logo-b4-branco.png (public); fallback 1x1
-  const logoPlaceholder = () => { const c = document.createElement('canvas'); c.width = 1; c.height = 1; const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
-  let logoTex = logoPlaceholder();
+  // 3. LOGO B4 — sprite à frente do núcleo do Sol; fallback = texto branco "B4" (sempre visível)
+  const logoPlaceholder = () => {
+    const c = document.createElement('canvas');
+    c.width = 128;
+    c.height = 68;
+    const ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, 128, 68);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = 'bold 48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('B4', 64, 34);
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  };
+  const logoTex = logoPlaceholder();
+  const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: logoTex,
+    transparent: true,
+    depthTest: false,
+    depthWrite: false,
+    opacity: 1
+  }));
   if (API) {
     loader.load(`${API}/api/textures/logo_b4.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; });
   } else {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     loader.load(`${origin}/logo-b4-branco.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; }, undefined, () => { logoSprite.material.map = logoPlaceholder(); });
   }
-  const logoSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: logoTex,
-    transparent: true,
-    depthTest: false,
-    depthWrite: false
-  }));
-  logoSprite.scale.set(4.5, 4.5 * 0.527, 1);
-  logoSprite.position.set(0, 0.3, 0);
+  logoSprite.scale.set(5, 5 * 0.527, 1);
+  logoSprite.position.set(0, 0.3, 0.9);
   logoSprite.renderOrder = 999;
 
   // 4. ERD-FX — sprite texto canvas (dourado/saffron)
@@ -482,19 +520,11 @@ function createSun(scene, loader, R) {
   fxSprite.position.set(0, -2.1, 0.4);
   fxSprite.renderOrder = 999;
 
-  // 5. CORE GROUP — core + logo + ERD-FX
+  // 5. CORE GROUP — core escuro + camadas internas + logo + ERD-FX (spec: montagem completa do Sol)
   const coreGroup = new THREE.Group();
   coreGroup.name = 'SolarCore';
   coreGroup.add(coreMesh);
-  coreGroup.add(logoSprite);
-  coreGroup.add(fxSprite);
-  coreGroup.visible = true;
-  group.add(coreGroup);
-  R.sunLayers.coreGroup = coreGroup;
-  R.sunLayers.logoPlane = logoSprite;
-  R.sunLayers.fxSprite = fxSprite;
-
-  // 6. CAMADAS INTERNAS (cross-section) — zona radiativa, convectiva, núcleo
+  // 6. CAMADAS INTERNAS (cross-section) — zona radiativa, convectiva, núcleo; dentro do coreGroup, renderOrder 997
   const internalLayers = [
     { key: 'radiative', r: SUN_RADIUS * 0.52, color: 0xff6600, opacity: 0.4 },
     { key: 'convective', r: SUN_RADIUS * 0.32, color: 0xff9900, opacity: 0.5 },
@@ -502,7 +532,7 @@ function createSun(scene, loader, R) {
   ];
   internalLayers.forEach((l) => {
     const mesh = new THREE.Mesh(
-      new THREE.SphereGeometry(l.r, 48, 48),
+      new THREE.SphereGeometry(l.r, 32, 32),
       new THREE.MeshBasicMaterial({
         color: l.color,
         transparent: true,
@@ -511,10 +541,18 @@ function createSun(scene, loader, R) {
         depthWrite: false
       })
     );
-    mesh.visible = false;
-    group.add(mesh);
+    mesh.renderOrder = 997;
+    mesh.visible = false; // visíveis em cross-section quando ativado
+    coreGroup.add(mesh);
     R.sunLayers[l.key] = mesh;
   });
+  coreGroup.add(logoSprite);
+  coreGroup.add(fxSprite);
+  coreGroup.visible = true;
+  group.add(coreGroup);
+  R.sunLayers.coreGroup = coreGroup;
+  R.sunLayers.logoPlane = logoSprite;
+  R.sunLayers.fxSprite = fxSprite;
 
   // 7. GLOW — halo externo (rim laranja, AdditiveBlending)
   const GLOW_FRAG = `
@@ -1076,28 +1114,29 @@ export default function SolarSystemPhotorealistic() {
     camera.position.set(0, 60, 140);
     R.camera = camera;
 
-    // Renderer - NASA-grade constraints
+    // Renderer - NASA-grade constraints; alpha: false = fundo opaco preto (evita branco no Netlify)
     const renderer = new THREE.WebGLRenderer({
       antialias: true, powerPreference: 'high-performance',
-      logarithmicDepthBuffer: true, stencil: false
+      logarithmicDepthBuffer: true, stencil: false,
+      alpha: false
     });
     renderer.setSize(w, h);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.92;
+    renderer.toneMappingExposure = 0.58;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.pointerEvents = 'auto';
     renderer.domElement.style.backgroundColor = '#000000';
+    renderer.domElement.style.background = '#000000';
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Sun is the ONLY primary light source — inverse-square falloff (decay=2)
-    // High intensity so planets (and fallback colors) stay visible
-    const sunLight = new THREE.PointLight(0xFFF8E8, 18000, 0, 2);
+    // Luz do Sol — reduzida para Terra não ficar branca e fundo/estrelas aparecerem
+    const sunLight = new THREE.PointLight(0xFFF8E8, 5200, 0, 2);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(2048, 2048);
     sunLight.shadow.camera.near = 0.5;
@@ -1119,8 +1158,10 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.visibleEdgeColor.set('#FFFFFF');
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
-    // Bloom suave: threshold alto = só o Sol brilha; strength baixo evita "camada branca" sobre a cena
-    composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.25, 0.96));
+    // Bloom: threshold alto = só o Sol brilha; strength baixo para não branquear Terra/fundo
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.12, 0.2, 0.9);
+    bloomPass.threshold = 0.94;
+    composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
     composer.addPass(new OutputPass());
     R.composer = composer;
@@ -1356,6 +1397,8 @@ export default function SolarSystemPhotorealistic() {
       camera.aspect = nw / nh; camera.updateProjectionMatrix();
       renderer.setSize(nw, nh); composer.setSize(nw, nh);
       if (R.outlinePass) R.outlinePass.setSize(nw, nh);
+      renderer.setClearColor(0x000000, 1);
+      renderer.domElement.style.backgroundColor = '#000000';
     };
     window.addEventListener('resize', onResize);
 
@@ -1539,17 +1582,29 @@ export default function SolarSystemPhotorealistic() {
   }, [cameraPreset, viewMode]);
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="solar-system-canvas"
-      style={{
-        width: '100%',
-        height: '100%',
-        background: '#000000',
-        position: 'relative',
-        pointerEvents: 'auto',
-        isolation: 'isolate'
-      }}
-    />
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000000' }}>
+      {/* Camada preta atrás do canvas — garante fundo preto mesmo se WebGL atrasar ou falhar */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#000000',
+          zIndex: 0
+        }}
+      />
+      <div
+        ref={containerRef}
+        data-testid="solar-system-canvas"
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'relative',
+          zIndex: 1,
+          background: '#000000',
+          pointerEvents: 'auto',
+          isolation: 'isolate'
+        }}
+      />
+    </div>
   );
 }

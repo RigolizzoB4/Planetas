@@ -2,11 +2,23 @@
 
 No **Emergent** e no **localhost** (porta 3000) o site funciona porque o navegador consegue carregar as texturas. No **Netlify** o Solar System Scope **bloqueia** essas requisições (CORS). A solução é **servir as mesmas texturas do seu próprio site**.
 
-O código **já está preparado**: ele tenta primeiro as texturas em `public/textures/`. Se os arquivos estiverem lá, o Netlify usa eles (mesma origem = sem CORS) e o site fica igual ao Emergent.
+O código segue o **truque do Emergent**: quando há backend (API), tenta primeiro **`/api/textures/...`** (ex.: `backend/textures/2k_stars_milky_way.jpg`); sem backend (ex.: Netlify), tenta **`/textures/...`** (ou seja, `frontend/public/textures/`). Assim não depende de CORS.
 
 ---
 
 ## O que VOCÊ precisa fazer (só uma vez)
+
+### 0. Se já veio tudo do Emergent (texturas no backend)
+
+Se você já tem os arquivos em **`backend/textures/`** (porque vieram no download do Emergent), **copie** para **`frontend/public/textures/`** — não precisa baixar de novo da web. No Netlify não existe backend, então o site usa só o que está em `public/`.
+
+Na raiz do projeto você pode rodar o script que faz essa cópia:
+
+```powershell
+.\copy-textures-from-backend.ps1
+```
+
+Ou manualmente: `New-Item -ItemType Directory -Force -Path frontend/public/textures` e `Copy-Item backend/textures/* frontend/public/textures/ -Force`. Assim a Via Láctea e as texturas dos planetas passam a funcionar no Netlify usando os mesmos arquivos que você já tem.
 
 ### 1. Criar a pasta (se não existir)
 
@@ -80,9 +92,18 @@ git push origin main
 
 ---
 
+## Por que o Netlify pode estar diferente do Emergent?
+
+- **Emergent** (solar-erdfx.preview.emergentagent.com) roda no ambiente deles, com backend e texturas que podem ser servidas por eles.
+- **Netlify** (borealb4.netlify.app) faz o build a partir **deste repositório** no GitHub. Se as texturas não estiverem em `public/textures/`, o site tenta carregar do Solar System Scope e pode falhar por **CORS** (fundo sem Via Láctea, planetas com cor sólida). O **logo no Sol** e o **fundo preto** vêm do código e do arquivo `public/logo-b4-branco.png` — após o último deploy devem aparecer.
+
+**Onde programar:** Pode continuar programando no **Cursor** (ou Anthropic, etc.) neste repositório. O Netlify usa o que está no GitHub. O Emergent pode usar o mesmo repo ou outro; para o Netlify ficar “completo e escuro” como o Emergent, basta seguir o checklist acima (logo + texturas em `public/`, deploy).
+
+---
+
 ## E o fundo branco?
 
-O código já força fundo **preto** em vários pontos: HTML (inline), CSS, cena Three.js, clear do renderer e a cada frame no loop de animação. Se ainda aparecer branco no Netlify:
+O código já força fundo **preto** (incl. renderer com `alpha: false`, clearColor e background a cada frame). Se ainda aparecer branco no Netlify:
 
 1. **Limpe o cache** do navegador (Ctrl+Shift+Delete → limpar imagens e arquivos em cache) ou abra o site em **aba anônima**.
 2. Confirme que o **último deploy** foi feito depois dessas alterações (`npm run deploy`).

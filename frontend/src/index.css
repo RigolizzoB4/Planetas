@@ -85,12 +85,14 @@
     overflow: hidden;
   }
 
-  /* Fundo preto na área 3D — evita branco / camada clara no Netlify */
+  /* Fundo preto em toda a área do app — evita branco no Netlify / Emergent iframe */
   #root,
+  #root > div,
   main,
   main > div,
   [data-testid="solar-system-canvas"],
-  [data-testid="solar-system-canvas"] canvas {
+  [data-testid="solar-system-canvas"] canvas,
+  [data-testid="solar-system-canvas"] > div {
     background-color: #000000 !important;
     background: #000000 !important;
   }
