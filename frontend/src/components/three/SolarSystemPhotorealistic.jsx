@@ -221,7 +221,8 @@ const TEX = {
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
-// Via Láctea: local primeiro (evita CORS no Netlify/outros hosts), depois fallback externo
+// Via Láctea: fundo custom (fundo_via_lactea.png) primeiro, depois fallbacks
+const FUNDO_VIA_LACTEA = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/fundo_via_lactea.png`;
 const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
 
@@ -374,12 +375,9 @@ function createStars(scene, loader) {
     };
     const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
     const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
-    // Ordem Emergent: 1) backend (API) → 2) public/textures/ (Netlify) → 3) externo SSS (CORS no Netlify)
-    if (API) {
-      loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal);
-    } else {
-      loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
-    }
+    // Ordem: 1) fundo custom public (fundo_via_lactea.png) → 2) API textures → 3) public 2k_stars → 4) externo SSS
+    const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
+    loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
   }
 
   const count = 15000;
