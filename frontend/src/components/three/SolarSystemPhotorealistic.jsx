@@ -221,7 +221,8 @@ const TEX = {
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
-// Via Láctea: fundo custom (fundo_via_lactea.png) primeiro, depois fallbacks
+// Skybox híbrido: HD estático (galaxy_hd_bg) primeiro, depois fallbacks
+const GALAXY_HD_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
 const FUNDO_VIA_LACTEA = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/fundo_via_lactea.png`;
 const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
@@ -375,10 +376,38 @@ function createStars(scene, loader) {
     };
     const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
     const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
-    // Ordem: 1) fundo custom public (fundo_via_lactea.png) → 2) API textures → 3) public 2k_stars → 4) externo SSS
     const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
-    loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
+    const tryFundoViaLactea = () => loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
+    // Ordem: 1) galaxy_hd_bg.jpg (skybox HD) → 2) fundo_via_lactea → 3) API → 4) public 2k_stars → 5) externo SSS
+    loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryFundoViaLactea);
   }
+
+  // Camada 2: poeira estelar (~2000 partículas) para profundidade e paralaxe
+  const DUST_COUNT = 2000;
+  const dustPos = new Float32Array(DUST_COUNT * 3);
+  for (let i = 0; i < DUST_COUNT; i++) {
+    const r = 400 + Math.random() * 600;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    dustPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    dustPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    dustPos[i * 3 + 2] = r * Math.cos(phi);
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+  const dustMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 1.8,
+    sizeAttenuation: false,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false
+  });
+  const dustPoints = new THREE.Points(dustGeo, dustMat);
+  dustPoints.name = 'DustLayer';
+  dustPoints.renderOrder = -8;
+  scene.add(dustPoints);
+  return dustPoints;
 
   const count = 15000;
   const pos = new Float32Array(count * 3);
@@ -1090,7 +1119,7 @@ export default function SolarSystemPhotorealistic() {
     const R = refs.current;
     // Reset mutable refs for re-init
     R.planets = {}; R.satellites = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
-    R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
+    R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
     R.aurora7Group = null; R.aurora7Angle = 0;
     const container = containerRef.current;
@@ -1200,8 +1229,8 @@ export default function SolarSystemPhotorealistic() {
     const loader = new THREE.TextureLoader();
     loader.crossOrigin = 'anonymous';
 
-    // Fundo: Via Láctea (textura) + estrelas procedurais (alinhado ao Emergent)
-    createStars(scene, loader);
+    // Fundo: Skybox HD (galaxy_hd_bg) + poeira estelar com drift para paralaxe
+    R.dustLayer = createStars(scene, loader);
     createStaticConstellations(scene);
 
     // Build scene — satellites FIRST, then planets
@@ -1408,6 +1437,10 @@ export default function SolarSystemPhotorealistic() {
       controls.update();
       if (R.solarGroup) {
         R.solarGroup.rotation.y += delta * GLOBAL_ROTATION_SPEED;
+      }
+      if (R.dustLayer) {
+        R.dustLayer.rotation.y += delta * 0.002;
+        R.dustLayer.rotation.x += delta * 0.0006;
       }
       if (R.sunMat) R.sunMat.uniforms.uTime.value = R.elapsed;
       if (R.coronaMat) R.coronaMat.uniforms.uTime.value = R.elapsed;
