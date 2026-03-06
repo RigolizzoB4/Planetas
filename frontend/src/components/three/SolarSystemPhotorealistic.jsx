@@ -421,16 +421,26 @@ function createStars(scene, loader) {
   const tryGalaxyPng = () => loader.load(GALAXY_HD_BG_PNG, applyMilkyWay, undefined, tryFundoViaLactea);
   const startGalaxyChain = () => loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryGalaxyPng);
 
+  // Fundo visível imediatamente: sempre inicia a cadeia da Via Láctea (evita tela preta/travamento)
+  startGalaxyChain();
+
+  // HDR em segundo plano (opcional): se carregar dentro do timeout, troca o fundo; senão mantém a galáxia
   if (loader && typeof window !== 'undefined') {
+    const HDR_TIMEOUT_MS = 12000;
+    let hdrDone = false;
+    const timeoutId = setTimeout(() => { hdrDone = true; }, HDR_TIMEOUT_MS);
     const rgeeLoader = new RGBELoader();
     rgeeLoader.load(HDR_BG, (hdrTexture) => {
-      hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
-      scene.background = hdrTexture;
-      scene.environment = hdrTexture;
-      milkyWayMesh.visible = false;
-    }, undefined, startGalaxyChain);
-  } else {
-    startGalaxyChain();
+      if (hdrDone) return;
+      hdrDone = true;
+      clearTimeout(timeoutId);
+      try {
+        hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+        scene.background = hdrTexture;
+        scene.environment = hdrTexture;
+        milkyWayMesh.visible = false;
+      } catch (_) { /* manter galáxia */ }
+    }, undefined, () => { if (!hdrDone) { hdrDone = true; clearTimeout(timeoutId); } });
   }
 
   // Camada 2: poeira estelar (~2000 partículas) para profundidade e paralaxe
