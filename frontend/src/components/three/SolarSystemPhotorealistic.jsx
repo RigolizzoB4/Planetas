@@ -9,6 +9,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
 // ==================== GLSL SHADERS ====================
@@ -221,6 +222,8 @@ const TEX = {
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
+const AURORA_7_GLB_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/models/aurora7.glb`;
+const HDR_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/HDR_multi_nebulae_2.hdr`;
 // Skybox híbrido: HD estático (galaxy_hd_bg) primeiro, depois fallbacks
 const GALAXY_HD_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
 const GALAXY_HD_BG_PNG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.png`;
@@ -232,6 +235,12 @@ const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origi
 function getLocalTexUrl(sssUrl) {
   if (typeof window === 'undefined') return null;
   const filename = sssUrl.split('/').pop();
+  return `${window.location.origin}/textures/${filename}`;
+}
+// Fallback: mesma textura com extensão .png (para imagens PNG salvas com outro nome)
+function getLocalTexUrlPng(sssUrl) {
+  if (typeof window === 'undefined') return null;
+  const filename = sssUrl.split('/').pop().replace(/\.(jpg|jpeg)$/i, '.png');
   return `${window.location.origin}/textures/${filename}`;
 }
 
@@ -326,6 +335,28 @@ function constMap(val) {
   return t;
 }
 
+// Sprite circular suave para partículas (evita aspecto quadrado / Minecraft)
+function createSoftPointTexture(size = 64) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const cx = size / 2;
+  const r = cx - 1;
+  const gradient = ctx.createRadialGradient(cx, cx, 0, cx, cx, r);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.25, 'rgba(255,255,255,0.9)');
+  gradient.addColorStop(0.5, 'rgba(255,255,255,0.4)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+const SOFT_POINT_TEX = createSoftPointTexture(64);
+
 // ==================== SCENE BUILDERS ====================
 // 20k estrelas de fundo — sizeAttenuation false = sempre do mesmo tamanho (sempre visíveis)
 function createStarfield() {
@@ -345,7 +376,10 @@ function createStarfield() {
     sizeAttenuation: false,
     transparent: true,
     opacity: 1,
-    depthWrite: false
+    depthWrite: false,
+    map: SOFT_POINT_TEX,
+    alphaMap: SOFT_POINT_TEX,
+    blending: THREE.AdditiveBlending
   });
   const points = new THREE.Points(geometry, material);
   points.renderOrder = -10;
@@ -353,7 +387,7 @@ function createStarfield() {
 }
 
 function createStars(scene, loader) {
-  // Via Láctea: esfera de fundo com textura realista (estilo Emergent / NASA)
+  // Fundo: 1) HDR (nebulae) se existir → 2) Via Láctea/galaxy (esfera + textura)
   const milkyWayRadius = 1200;
   const milkyWayGeo = new THREE.SphereGeometry(milkyWayRadius, 32, 32);
   const milkyWayMat = new THREE.MeshBasicMaterial({
@@ -366,22 +400,37 @@ function createStars(scene, loader) {
   milkyWayMesh.name = 'MilkyWayBackground';
   milkyWayMesh.renderOrder = -10;
   scene.add(milkyWayMesh);
-  if (loader) {
-    const applyMilkyWay = (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      milkyWayMat.map = t;
-      milkyWayMat.needsUpdate = true;
-    };
-    const onMilkyWayFail = () => {
-      if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
-    };
-    const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
-    const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
-    const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
-    const tryFundoViaLactea = () => loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
-    const tryGalaxyPng = () => loader.load(GALAXY_HD_BG_PNG, applyMilkyWay, undefined, tryFundoViaLactea);
-    // Ordem: 1) galaxy_hd_bg.jpg (skybox HD) → 2) .png fallback → 3) fundo_via_lactea → 4) API → 5) 2k_stars → 6) SSS
-    loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryGalaxyPng);
+
+  const applyMilkyWay = (t) => {
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.magFilter = THREE.LinearFilter;
+    t.anisotropy = 16;
+    t.generateMipmaps = true;
+    milkyWayMat.map = t;
+    milkyWayMat.needsUpdate = true;
+  };
+  const onMilkyWayFail = () => {
+    if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
+  };
+  const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
+  const tryLocalPng = () => { const u = getLocalTexUrlPng(MILKY_WAY_EXTERNAL); if (u) loader.load(u, applyMilkyWay, undefined, tryExternal); else tryExternal(); };
+  const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryLocalPng);
+  const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
+  const tryFundoViaLactea = () => loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
+  const tryGalaxyPng = () => loader.load(GALAXY_HD_BG_PNG, applyMilkyWay, undefined, tryFundoViaLactea);
+  const startGalaxyChain = () => loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryGalaxyPng);
+
+  if (loader && typeof window !== 'undefined') {
+    const rgeeLoader = new RGBELoader();
+    rgeeLoader.load(HDR_BG, (hdrTexture) => {
+      hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+      scene.background = hdrTexture;
+      scene.environment = hdrTexture;
+      milkyWayMesh.visible = false;
+    }, undefined, startGalaxyChain);
+  } else {
+    startGalaxyChain();
   }
 
   // Camada 2: poeira estelar (~2000 partículas) para profundidade e paralaxe
@@ -403,7 +452,10 @@ function createStars(scene, loader) {
     sizeAttenuation: false,
     transparent: true,
     opacity: 0.85,
-    depthWrite: false
+    depthWrite: false,
+    map: SOFT_POINT_TEX,
+    alphaMap: SOFT_POINT_TEX,
+    blending: THREE.AdditiveBlending
   });
   const dustPoints = new THREE.Points(dustGeo, dustMat);
   dustPoints.name = 'DustLayer';
@@ -443,7 +495,10 @@ function createStars(scene, loader) {
     transparent: true,
     opacity: 1,
     sizeAttenuation: false,
-    depthWrite: false
+    depthWrite: false,
+    map: SOFT_POINT_TEX,
+    alphaMap: SOFT_POINT_TEX,
+    blending: THREE.AdditiveBlending
   }));
   starsPoints.renderOrder = -5;
   scene.add(starsPoints);
@@ -471,7 +526,8 @@ function createSun(scene, loader, R) {
   const sunFallback2k = TEX.Sun.replace(/8k_/g, '2k_');
   const trySunSSS = () => loader.load(TEX.Sun, applySunTex, undefined, () => loader.load(sunFallback2k, applySunTex));
   const trySunLocal2k = () => loader.load(getLocalTexUrl(sunFallback2k) || sunFallback2k, applySunTex, undefined, trySunSSS);
-  loader.load(getLocalTexUrl(TEX.Sun) || TEX.Sun, applySunTex, undefined, trySunLocal2k);
+  const trySunLocalPng = () => { const url = getLocalTexUrlPng(TEX.Sun); if (url) loader.load(url, applySunTex, undefined, trySunLocal2k); else trySunLocal2k(); };
+  loader.load(getLocalTexUrl(TEX.Sun) || TEX.Sun, applySunTex, undefined, trySunLocalPng);
 
   const photo = new THREE.Mesh(new THREE.SphereGeometry(SUN_RADIUS, 64, 64), sunMat);
   photo.name = 'Sun';
@@ -845,13 +901,12 @@ function createPlanet(scene, loader, name, cfg, R) {
     };
     const tryPrimary = () => loader.load(primaryUrl, applyTex, undefined, () => { ensureColor(); tryFallbackSSS(); });
     const local8k = getLocalTexUrl(TEX[name]);
+    const local8kPng = getLocalTexUrlPng(TEX[name]);
     const local2k = getLocalTexUrl(fallback2k);
-    // Sempre tenta local primeiro (Netlify = sem CORS); depois NASA/SSS
+    // Sempre tenta local primeiro (Netlify = sem CORS); aceita .jpg ou .png
+    const tryLocalPng = () => (local8kPng && local8kPng !== local8k) ? loader.load(local8kPng, applyTex, undefined, () => { if (local2k && local2k !== local8k) loader.load(local2k, applyTex, undefined, tryPrimary); else tryPrimary(); }) : (local2k && local2k !== local8k) ? loader.load(local2k, applyTex, undefined, tryPrimary) : tryPrimary();
     if (local8k) {
-      loader.load(local8k, applyTex, undefined, () => {
-        if (local2k && local2k !== local8k) loader.load(local2k, applyTex, undefined, tryPrimary);
-        else tryPrimary();
-      });
+      loader.load(local8k, applyTex, undefined, tryLocalPng);
     } else tryPrimary();
   }
 
@@ -892,7 +947,10 @@ function createPlanet(scene, loader, name, cfg, R) {
     const cloudMat = new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.35, depthWrite: false, roughness: 1.0, metalness: 0.0 });
     const applyCloud = (t) => { t.colorSpace = THREE.SRGBColorSpace; cloudMat.map = t; cloudMat.alphaMap = t; cloudMat.needsUpdate = true; };
     const cloud2k = TEX.EarthClouds.replace(/8k_/g, '2k_');
-    loader.load(getLocalTexUrl(TEX.EarthClouds) || TEX.EarthClouds, applyCloud, undefined, () => loader.load(getLocalTexUrl(cloud2k) || cloud2k, applyCloud, undefined, () => loader.load(TEX.EarthClouds, applyCloud, undefined, () => loader.load(cloud2k, applyCloud))));
+    const tryCloudRemote = () => loader.load(TEX.EarthClouds, applyCloud, undefined, () => loader.load(cloud2k, applyCloud));
+    const tryCloudLocal2k = () => loader.load(getLocalTexUrl(cloud2k) || cloud2k, applyCloud, undefined, tryCloudRemote);
+    const tryCloudLocalPng = () => { const url = getLocalTexUrlPng(TEX.EarthClouds); if (url) loader.load(url, applyCloud, undefined, tryCloudLocal2k); else tryCloudLocal2k(); };
+    loader.load(getLocalTexUrl(TEX.EarthClouds) || TEX.EarthClouds, applyCloud, undefined, tryCloudLocalPng);
     const clouds = new THREE.Mesh(new THREE.SphereGeometry(cfg.size * 1.02, 64, 64), cloudMat);
     planet.add(clouds);
     R.planets['EarthClouds'] = clouds;
@@ -1078,7 +1136,7 @@ function createAtlasAurora7(solarGroup, loader, R) {
   group.position.z = Math.sin(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
 
   const gltfLoader = new GLTFLoader();
-  gltfLoader.load(ATLAS_7_AURORA_7_GLB, (gltf) => {
+  const onAurora7Loaded = (gltf) => {
     const model = gltf.scene;
     model.traverse((c) => {
       if (c.isMesh) {
@@ -1093,7 +1151,8 @@ function createAtlasAurora7(solarGroup, loader, R) {
     const scale = 0.35 / maxDim;
     model.scale.setScalar(scale);
     group.add(model);
-  }, undefined, () => { /* fallback: opcional */ });
+  };
+  gltfLoader.load(AURORA_7_GLB_LOCAL, onAurora7Loaded, undefined, () => gltfLoader.load(ATLAS_7_AURORA_7_GLB, onAurora7Loaded, undefined, () => {}));
 
   solarGroup.add(group);
   R.aurora7Group = group;
