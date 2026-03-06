@@ -1,6 +1,42 @@
 # Texturas para o fundo (Via Láctea) e uso em deploy
 
-**Fundo de tela do site:** A imagem **`fundo_via_lactea.png`** nesta pasta é usada como fundo estelar (Via Láctea) da cena 3D. O código tenta carregá-la em primeiro lugar; se não existir, usa os fallbacks abaixo.
+**Substituir cada item:** Sim. Qualquer textura pode ser trocada colocando aqui um arquivo com o **nome exato** abaixo. O código tenta sempre **local primeiro** (`/textures/...`); aceita `.jpg` ou `.png` (fallback automático para `.png`).
+
+| Item no site | Nome do arquivo nesta pasta |
+|--------------|-----------------------------|
+| Sol | `8k_sun.jpg` ou `8k_sun.png` |
+| Mercúrio | `8k_mercury.jpg` / `.png` |
+| Vênus | `8k_venus_surface.jpg` / `.png` |
+| Terra | `8k_earth_daymap.jpg` / `.png` |
+| Nuvens da Terra | `8k_earth_clouds.jpg` / `.png` |
+| Marte | `8k_mars.jpg` / `.png` |
+| Júpiter | `8k_jupiter.jpg` / `.png` |
+| Saturno | `8k_saturn.jpg` / `.png` |
+| Anel de Saturno | `8k_saturn_ring_alpha.png` |
+| Urano | `8k_uranus.jpg` / `.png` |
+| Netuno | `8k_neptune.jpg` / `.png` |
+| Plutão | `2k_pluto.jpg` / `.png` |
+| **Skybox (4 camadas)** | Ver seção abaixo. |
+
+A Lua (satélite) usa cor no código atual; para textura da Lua, coloque `8k_moon.png` (uso futuro). O modelo **Atlas 7 (Aurora 7)** fica em `public/models/aurora7.glb` (GLB local tem prioridade sobre a URL NASA).
+
+---
+
+## Skybox — 4 camadas (fundo estático 360°)
+
+O fundo usa **apenas** estas texturas em `frontend/public/textures/`:
+
+| Camada | Arquivo | Descrição |
+|--------|---------|-----------|
+| **1** | **`starmap_8k.jpg`** | Mapa de estrelas 8K equirectangular (obrigatório). Resolução mínima **8192×4096**. sRGB, sem repetição. |
+| **2** | **`nebula_overlay.png`** | Nebulosas muito sutis (opacidade ~18%). Opcional. |
+| **3** | *(partículas no código)* | Star particles pequenas (parallax). |
+| **4** | **`milky_way_band.png`** | Leve brilho da Via Láctea (opacidade ~12%). Opcional. |
+
+- **Esfera:** `SphereGeometry(5000, 64, 64)` — 360°, sem repetição de textura (`ClampToEdgeWrapping`).
+- **Iluminação:** skybox não recebe luz (MeshBasicMaterial).
+- Se `starmap_8k.jpg` não existir, o código tenta `starmap_8k.png` → `galaxy_hd_bg.jpg` → **estrelas procedurais** (canvas), então o fundo não fica totalmente preto.
+- **Como obter um mapa 8K de verdade:** veja **`COMO_OBTER_STARMAP_8K.md`** nesta pasta (links NASA, Paul Bourke, etc.).
 
 **Importante para Netlify:** No deploy (ex.: borealb4.netlify.app), o Solar System Scope **bloqueia** o carregamento de texturas por CORS. Por isso o fundo pode ficar preto sem Via Láctea e os planetas aparecem com **cores sólidas** (fallback) em vez de texturas. Com `fundo_via_lactea.png` ou `2k_stars_milky_way.jpg` nesta pasta, o fundo funciona. O logo do Sol usa `public/logo-b4-branco.png` quando o backend não está disponível.
 

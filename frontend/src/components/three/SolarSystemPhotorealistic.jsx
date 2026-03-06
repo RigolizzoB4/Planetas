@@ -9,7 +9,6 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
 // ==================== GLSL SHADERS ====================
@@ -223,13 +222,14 @@ const TEX = {
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 const AURORA_7_GLB_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/models/aurora7.glb`;
-const HDR_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/HDR_multi_nebulae_2.hdr`;
-// Skybox híbrido: HD estático (galaxy_hd_bg) primeiro, depois fallbacks
-const GALAXY_HD_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
-const GALAXY_HD_BG_PNG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.png`;
-const FUNDO_VIA_LACTEA = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/fundo_via_lactea.png`;
-const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
-const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
+
+// Skybox 4 camadas: 8K star map + nebulae sutis + star particles + Via Láctea leve (sem repetição, estático)
+const SKYBOX_RADIUS = 5000;
+const STARMAP_8K = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/starmap_8k.jpg`;
+const STARMAP_8K_PNG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/starmap_8k.png`;
+const STARMAP_FALLBACK = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
+const NEBULA_OVERLAY = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/nebula_overlay.png`;
+const MILKY_WAY_BAND = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/milky_way_band.png`;
 
 // No Netlify o Solar System Scope bloqueia por CORS. Se as texturas estiverem em public/textures/, o site usa elas (mesma origem = sem CORS).
 function getLocalTexUrl(sssUrl) {
@@ -357,161 +357,149 @@ function createSoftPointTexture(size = 64) {
 
 const SOFT_POINT_TEX = createSoftPointTexture(64);
 
-// ==================== SCENE BUILDERS ====================
-// 20k estrelas de fundo — sizeAttenuation false = sempre do mesmo tamanho (sempre visíveis)
-function createStarfield() {
-  const geometry = new THREE.BufferGeometry();
-  const vertices = [];
-  for (let i = 0; i < 20000; i++) {
-    vertices.push(
-      (Math.random() - 0.5) * 2400,
-      (Math.random() - 0.5) * 2400,
-      (Math.random() - 0.5) * 2400
-    );
-  }
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  const material = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 4,
-    sizeAttenuation: false,
-    transparent: true,
-    opacity: 1,
-    depthWrite: false,
-    map: SOFT_POINT_TEX,
-    alphaMap: SOFT_POINT_TEX,
-    blending: THREE.AdditiveBlending
-  });
-  const points = new THREE.Points(geometry, material);
-  points.renderOrder = -10;
-  return points;
+// Aplica configuração de textura para skybox: sRGB, sem repetição, boa filtragem
+function applySkyboxTex(t) {
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.anisotropy = 16;
+  t.generateMipmaps = true;
 }
 
-function createStars(scene, loader) {
-  // Fundo: 1) HDR (nebulae) se existir → 2) Via Láctea/galaxy (esfera + textura)
-  const milkyWayRadius = 1200;
-  const milkyWayGeo = new THREE.SphereGeometry(milkyWayRadius, 32, 32);
-  const milkyWayMat = new THREE.MeshBasicMaterial({
+// ==================== SCENE BUILDERS ====================
+// Skybox em 4 camadas (estático, 360°, profundidade)
+// Camada 1: mapa estelar 8K | Camada 2: nebulae sutis | Camada 3: star particles | Camada 4: Via Láctea leve
+function createSkyboxLayers(scene, loader) {
+  const segments = 64;
+  const skyGeo = new THREE.SphereGeometry(SKYBOX_RADIUS, segments, segments);
+
+  // —— Camada 1: mapa de estrelas 8K equirectangular (sem iluminação, estático)
+  const layer1Mat = new THREE.MeshBasicMaterial({
     map: null,
     side: THREE.BackSide,
     depthWrite: false,
     fog: false
   });
-  const milkyWayMesh = new THREE.Mesh(milkyWayGeo, milkyWayMat);
-  milkyWayMesh.name = 'MilkyWayBackground';
-  milkyWayMesh.renderOrder = -10;
-  scene.add(milkyWayMesh);
+  const layer1 = new THREE.Mesh(skyGeo.clone(), layer1Mat);
+  layer1.name = 'SkyboxLayer1_StarMap';
+  layer1.renderOrder = -10;
+  scene.add(layer1);
 
-  const applyMilkyWay = (t) => {
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.minFilter = THREE.LinearMipmapLinearFilter;
-    t.magFilter = THREE.LinearFilter;
-    t.anisotropy = 16;
-    t.generateMipmaps = true;
-    milkyWayMat.map = t;
-    milkyWayMat.needsUpdate = true;
+  const applyProceduralStarfield = () => {
+    const w = 2048, h = 1024;
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#05070b';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 8000; i++) {
+      const x = Math.floor(Math.random() * w);
+      const y = Math.floor(Math.random() * h);
+      const r = Math.random() > 0.92 ? 1.2 : Math.random() > 0.7 ? 0.8 : 0.4;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    applySkyboxTex(tex);
+    layer1Mat.map = tex;
+    layer1Mat.needsUpdate = true;
   };
-  const onMilkyWayFail = () => {
-    if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
-  };
-  const tryExternal = () => loader.load(MILKY_WAY_EXTERNAL, applyMilkyWay, undefined, onMilkyWayFail);
-  const tryLocalPng = () => { const u = getLocalTexUrlPng(MILKY_WAY_EXTERNAL); if (u) loader.load(u, applyMilkyWay, undefined, tryExternal); else tryExternal(); };
-  const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryLocalPng);
-  const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
-  const tryFundoViaLactea = () => loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
-  const tryGalaxyPng = () => loader.load(GALAXY_HD_BG_PNG, applyMilkyWay, undefined, tryFundoViaLactea);
-  const startGalaxyChain = () => loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryGalaxyPng);
 
-  // Fundo visível imediatamente: sempre inicia a cadeia da Via Láctea (evita tela preta/travamento)
-  startGalaxyChain();
-
-  // HDR em segundo plano (opcional): se carregar dentro do timeout, troca o fundo; senão mantém a galáxia
-  if (loader && typeof window !== 'undefined') {
-    const HDR_TIMEOUT_MS = 12000;
-    let hdrDone = false;
-    const timeoutId = setTimeout(() => { hdrDone = true; }, HDR_TIMEOUT_MS);
-    const rgeeLoader = new RGBELoader();
-    rgeeLoader.load(HDR_BG, (hdrTexture) => {
-      if (hdrDone) return;
-      hdrDone = true;
-      clearTimeout(timeoutId);
-      try {
-        hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
-        scene.background = hdrTexture;
-        scene.environment = hdrTexture;
-        milkyWayMesh.visible = false;
-      } catch (_) { /* manter galáxia */ }
-    }, undefined, () => { if (!hdrDone) { hdrDone = true; clearTimeout(timeoutId); } });
-  }
-
-  // Camada 2: poeira estelar (~2000 partículas) para profundidade e paralaxe
-  const DUST_COUNT = 2000;
-  const dustPos = new Float32Array(DUST_COUNT * 3);
-  for (let i = 0; i < DUST_COUNT; i++) {
-    const r = 400 + Math.random() * 600;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    dustPos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    dustPos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    dustPos[i * 3 + 2] = r * Math.cos(phi);
-  }
-  const dustGeo = new THREE.BufferGeometry();
-  dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-  const dustMat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 1.8,
-    sizeAttenuation: false,
-    transparent: true,
-    opacity: 0.85,
-    depthWrite: false,
-    map: SOFT_POINT_TEX,
-    alphaMap: SOFT_POINT_TEX,
-    blending: THREE.AdditiveBlending
+  loader.load(STARMAP_8K, (t) => {
+    applySkyboxTex(t);
+    layer1Mat.map = t;
+    layer1Mat.needsUpdate = true;
+  }, undefined, () => {
+    loader.load(STARMAP_8K_PNG, (t) => {
+      applySkyboxTex(t);
+      layer1Mat.map = t;
+      layer1Mat.needsUpdate = true;
+    }, undefined, () => {
+      loader.load(STARMAP_FALLBACK, (t) => {
+      applySkyboxTex(t);
+      layer1Mat.map = t;
+      layer1Mat.needsUpdate = true;
+      }, undefined, () => {
+        applyProceduralStarfield();
+        if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
+      });
+    });
   });
-  const dustPoints = new THREE.Points(dustGeo, dustMat);
-  dustPoints.name = 'DustLayer';
-  dustPoints.renderOrder = -8;
-  scene.add(dustPoints);
-  return dustPoints;
 
-  const count = 15000;
-  const pos = new Float32Array(count * 3);
-  const col = new Float32Array(count * 3);
-  const spectral = [
-    { r: 0.51, g: 0.51, b: 0.51, w: 0.40 },
-    { r: 0.71, g: 0.71, b: 0.71, w: 0.30 },
-    { r: 0.93, g: 0.93, b: 0.92, w: 0.20 },
-    { r: 0.95, g: 0.68, b: 0.24, w: 0.08 },
-    { r: 0.93, g: 0.93, b: 0.92, w: 0.02 }
-  ];
-  for (let i = 0; i < count; i++) {
-    const r = 500 + Math.random() * 500;
+  // —— Camada 2: nebulosas muito sutis (overlay, opacidade baixa)
+  const layer2Mat = new THREE.MeshBasicMaterial({
+    map: null,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0.18,
+    depthWrite: false,
+    fog: false
+  });
+  const layer2 = new THREE.Mesh(skyGeo.clone(), layer2Mat);
+  layer2.name = 'SkyboxLayer2_Nebula';
+  layer2.renderOrder = -9;
+  scene.add(layer2);
+
+  loader.load(NEBULA_OVERLAY, (t) => {
+    applySkyboxTex(t);
+    layer2Mat.map = t;
+    layer2Mat.needsUpdate = true;
+  }, undefined, () => {});
+
+  // —— Camada 3: star particles pequenas (parallax)
+  const PARTICLE_COUNT = 2500;
+  const pos = new Float32Array(PARTICLE_COUNT * 3);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const r = 800 + Math.random() * 1200;
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.acos(2 * Math.random() - 1);
     pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
     pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
     pos[i * 3 + 2] = r * Math.cos(phi);
-    let rnd = Math.random(), acc = 0, cls = spectral[0];
-    for (const s of spectral) { acc += s.w; if (rnd < acc) { cls = s; break; } }
-    col[i * 3] = cls.r * (0.9 + Math.random() * 0.1);
-    col[i * 3 + 1] = cls.g * (0.9 + Math.random() * 0.1);
-    col[i * 3 + 2] = cls.b * (0.9 + Math.random() * 0.1);
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  const starsPoints = new THREE.Points(geo, new THREE.PointsMaterial({
-    size: 2,
-    vertexColors: true,
-    transparent: true,
-    opacity: 1,
+  const particleGeo = new THREE.BufferGeometry();
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const particleMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 1,
     sizeAttenuation: false,
+    transparent: true,
+    opacity: 0.5,
     depthWrite: false,
     map: SOFT_POINT_TEX,
     alphaMap: SOFT_POINT_TEX,
-    blending: THREE.AdditiveBlending
-  }));
-  starsPoints.renderOrder = -5;
-  scene.add(starsPoints);
+    blending: THREE.NormalBlending
+  });
+  const layer3 = new THREE.Points(particleGeo, particleMat);
+  layer3.name = 'SkyboxLayer3_StarParticles';
+  layer3.renderOrder = -8;
+  scene.add(layer3);
+
+  // —— Camada 4: leve brilho da Via Láctea (opcional)
+  const layer4Mat = new THREE.MeshBasicMaterial({
+    map: null,
+    side: THREE.BackSide,
+    transparent: true,
+    opacity: 0.12,
+    depthWrite: false,
+    fog: false
+  });
+  const layer4 = new THREE.Mesh(skyGeo.clone(), layer4Mat);
+  layer4.name = 'SkyboxLayer4_MilkyWay';
+  layer4.renderOrder = -7;
+  scene.add(layer4);
+
+  loader.load(MILKY_WAY_BAND, (t) => {
+    applySkyboxTex(t);
+    layer4Mat.map = t;
+    layer4Mat.needsUpdate = true;
+  }, undefined, () => {});
+
+  return layer3;
 }
 
 // Programação completa do Sol com logo (spec): fotosfera → core + camadas internas + logo B4 + ERD-FX → glow.
@@ -1200,8 +1188,6 @@ export default function SolarSystemPhotorealistic() {
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
     R.scene = scene;
-    scene.add(createStarfield());
-
     const solarGroup = new THREE.Group();
     solarGroup.name = 'SolarSystemRoot';
     scene.add(solarGroup);
@@ -1219,7 +1205,7 @@ export default function SolarSystemPhotorealistic() {
       alpha: false
     });
     renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.58;
@@ -1236,7 +1222,7 @@ export default function SolarSystemPhotorealistic() {
     // Luz do Sol — reduzida para Terra não ficar branca e fundo/estrelas aparecerem
     const sunLight = new THREE.PointLight(0xFFF8E8, 5200, 0, 2);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
+    sunLight.shadow.mapSize.set(1024, 1024);
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 200;
     sunLight.shadow.bias = -0.0005;
@@ -1265,18 +1251,18 @@ export default function SolarSystemPhotorealistic() {
     R.composer = composer;
     R.outlinePass = outlinePass;
 
-    // Controls — spec B4: scroll zoom 2.0, min 0.5 / max 600, damping 0.03, rotate 0.5, pan 0.8, 360°
+    // Controls — damping maior = câmera mais responsiva (menos travamento no Netlify)
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.03;
+    controls.dampingFactor = 0.12;
     controls.minDistance = 0.5;
     controls.maxDistance = 600;
     controls.enablePan = true;
     controls.screenSpacePanning = true;
     controls.maxPolarAngle = Math.PI;
     controls.panSpeed = 0.8;
-    controls.rotateSpeed = 0.5;
+    controls.rotateSpeed = 0.55;
     controls.zoomSpeed = 2.0;
     R.controls = controls;
 
@@ -1300,8 +1286,8 @@ export default function SolarSystemPhotorealistic() {
     const loader = new THREE.TextureLoader();
     loader.crossOrigin = 'anonymous';
 
-    // Fundo: Skybox HD (galaxy_hd_bg) + poeira estelar com drift para paralaxe
-    R.dustLayer = createStars(scene, loader);
+    // Fundo: 4 camadas (8K star map + nebulae + star particles + Via Láctea leve)
+    R.dustLayer = createSkyboxLayers(scene, loader);
     createStaticConstellations(scene);
 
     // Build scene — satellites FIRST, then planets

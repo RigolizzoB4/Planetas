@@ -3,6 +3,8 @@
 ## 📌 Descrição
 Simulação interativa 3D do Sistema Solar com metáfora ERP/APIs, construída com React, Three.js e FastAPI.
 
+**Arquitetura e nomes de arquivos:** veja **[docs/ARQUITETURA_PROJETO.md](docs/ARQUITETURA_PROJETO.md)**.
+
 ![B4 Solar System](https://customer-assets.emergentagent.com/job_9d3cd00b-137b-4850-a3b5-a70f94e501fc/artifacts/80iqqy5v_LOGO_GRUPO_B4_SF-removebg-preview.png)
 
 ## ✨ Funcionalidades
