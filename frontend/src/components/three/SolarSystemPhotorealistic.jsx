@@ -1224,16 +1224,20 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol — reduzida para Terra não ficar branca e fundo/estrelas aparecerem
+    // Luz do Sol: face voltada ao Sol como a da Terra (sem exagerar); distância 0 = mesmo brilho em todos
     const sunLight = new THREE.PointLight(0xFFF8E8, 5200, 0, 2);
+    sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(1024, 1024);
     sunLight.shadow.camera.near = 0.5;
     sunLight.shadow.camera.far = 200;
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.radius = 4;
-    scene.add(sunLight);
-    const hemilight = new THREE.HemisphereLight(0x4488cc, 0x0a0e14, 0.15);
+    solarGroup.add(sunLight);
+    // Parte de trás: sombra suave (não preta) — ambient + hemisphere altos para costas visíveis e graduais
+    const ambientFill = new THREE.AmbientLight(0xb0c4e0, 0.38);
+    scene.add(ambientFill);
+    const hemilight = new THREE.HemisphereLight(0x7098cc, 0x283548, 0.58);
     scene.add(hemilight);
 
     // Post-processing: Bloom + SMAA + Output
@@ -1247,8 +1251,8 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.visibleEdgeColor.set('#FFFFFF');
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
-    // Bloom: threshold alto = só o Sol brilha; strength baixo para não branquear Terra/fundo
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.12, 0.2, 0.9);
+    // Bloom: só o Sol brilha (threshold alto); strength contido para planetas visíveis sem exagero
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.09, 0.2, 0.9);
     bloomPass.threshold = 0.94;
     composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
