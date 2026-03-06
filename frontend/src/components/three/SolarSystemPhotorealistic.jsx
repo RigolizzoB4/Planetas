@@ -223,6 +223,7 @@ const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Pro
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 // Skybox híbrido: HD estático (galaxy_hd_bg) primeiro, depois fallbacks
 const GALAXY_HD_BG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
+const GALAXY_HD_BG_PNG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.png`;
 const FUNDO_VIA_LACTEA = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/fundo_via_lactea.png`;
 const MILKY_WAY_EXTERNAL = `${SOLAR_SCOPE_8K}2k_stars_milky_way.jpg`;
 const MILKY_WAY_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/2k_stars_milky_way.jpg`;
@@ -378,8 +379,9 @@ function createStars(scene, loader) {
     const tryLocal = () => loader.load(MILKY_WAY_LOCAL, applyMilkyWay, undefined, tryExternal);
     const tryApiTextures = () => API ? loader.load(`${API}/api/textures/2k_stars_milky_way.jpg`, applyMilkyWay, undefined, tryLocal) : tryLocal;
     const tryFundoViaLactea = () => loader.load(FUNDO_VIA_LACTEA, applyMilkyWay, undefined, tryApiTextures);
-    // Ordem: 1) galaxy_hd_bg.jpg (skybox HD) → 2) fundo_via_lactea → 3) API → 4) public 2k_stars → 5) externo SSS
-    loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryFundoViaLactea);
+    const tryGalaxyPng = () => loader.load(GALAXY_HD_BG_PNG, applyMilkyWay, undefined, tryFundoViaLactea);
+    // Ordem: 1) galaxy_hd_bg.jpg (skybox HD) → 2) .png fallback → 3) fundo_via_lactea → 4) API → 5) 2k_stars → 6) SSS
+    loader.load(GALAXY_HD_BG, applyMilkyWay, undefined, tryGalaxyPng);
   }
 
   // Camada 2: poeira estelar (~2000 partículas) para profundidade e paralaxe
