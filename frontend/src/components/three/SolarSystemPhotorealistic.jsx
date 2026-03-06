@@ -221,27 +221,29 @@ const TEX = {
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
-const AURORA_7_GLB_LOCAL = `${typeof window !== 'undefined' ? window.location.origin : ''}/models/aurora7.glb`;
+// Base URL para assets: no Netlify e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
+const getBaseUrl = () => (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.PUBLIC_URL || '');
+const AURORA_7_GLB_LOCAL = `${getBaseUrl()}/models/aurora7.glb`;
 
 // Skybox 4 camadas: 8K star map + nebulae sutis + star particles + Via Láctea leve (sem repetição, estático)
 const SKYBOX_RADIUS = 5000;
-const STARMAP_8K = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/starmap_8k.jpg`;
-const STARMAP_8K_PNG = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/starmap_8k.png`;
-const STARMAP_FALLBACK = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/galaxy_hd_bg.jpg`;
-const NEBULA_OVERLAY = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/nebula_overlay.png`;
-const MILKY_WAY_BAND = `${typeof window !== 'undefined' ? window.location.origin : ''}/textures/milky_way_band.png`;
+const STARMAP_8K = `${getBaseUrl()}/textures/starmap_8k.jpg`;
+const STARMAP_8K_PNG = `${getBaseUrl()}/textures/starmap_8k.png`;
+const STARMAP_FALLBACK = `${getBaseUrl()}/textures/galaxy_hd_bg.jpg`;
+const NEBULA_OVERLAY = `${getBaseUrl()}/textures/nebula_overlay.png`;
+const MILKY_WAY_BAND = `${getBaseUrl()}/textures/milky_way_band.png`;
 
 // No Netlify o Solar System Scope bloqueia por CORS. Se as texturas estiverem em public/textures/, o site usa elas (mesma origem = sem CORS).
 function getLocalTexUrl(sssUrl) {
   if (typeof window === 'undefined') return null;
   const filename = sssUrl.split('/').pop();
-  return `${window.location.origin}/textures/${filename}`;
+  return `${getBaseUrl()}/textures/${filename}`;
 }
 // Fallback: mesma textura com extensão .png (para imagens PNG salvas com outro nome)
 function getLocalTexUrlPng(sssUrl) {
   if (typeof window === 'undefined') return null;
   const filename = sssUrl.split('/').pop().replace(/\.(jpg|jpeg)$/i, '.png');
-  return `${window.location.origin}/textures/${filename}`;
+  return `${getBaseUrl()}/textures/${filename}`;
 }
 
 const SUN_RADIUS = 5.5;
@@ -386,6 +388,7 @@ function createSkyboxLayers(scene, loader) {
   layer1.renderOrder = -10;
   scene.add(layer1);
 
+  // Fallback procedural: fundo visível desde o primeiro frame (importante no Netlify se texturas demorarem ou falharem)
   const applyProceduralStarfield = () => {
     const w = 2048, h = 1024;
     const canvas = document.createElement('canvas');
@@ -420,15 +423,18 @@ function createSkyboxLayers(scene, loader) {
       layer1Mat.needsUpdate = true;
     }, undefined, () => {
       loader.load(STARMAP_FALLBACK, (t) => {
-      applySkyboxTex(t);
-      layer1Mat.map = t;
-      layer1Mat.needsUpdate = true;
+        applySkyboxTex(t);
+        layer1Mat.map = t;
+        layer1Mat.needsUpdate = true;
       }, undefined, () => {
         applyProceduralStarfield();
         if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
       });
     });
   });
+  // Mostra fundo procedural logo (substituído quando textura carregar), para Netlify não ficar preto
+  applyProceduralStarfield();
+  if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
 
   // —— Camada 2: nebulosas muito sutis (overlay, opacidade baixa)
   const layer2Mat = new THREE.MeshBasicMaterial({
@@ -574,8 +580,7 @@ function createSun(scene, loader, R) {
   if (API) {
     loader.load(`${API}/api/textures/logo_b4.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; });
   } else {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    loader.load(`${origin}/logo-b4-branco.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; }, undefined, () => { logoSprite.material.map = logoPlaceholder(); });
+    loader.load(`${getBaseUrl()}/logo-b4-branco.png`, (t) => { t.colorSpace = THREE.SRGBColorSpace; logoSprite.material.map = t; logoSprite.material.needsUpdate = true; }, undefined, () => { logoSprite.material.map = logoPlaceholder(); });
   }
   logoSprite.scale.set(5, 5 * 0.527, 1);
   logoSprite.position.set(0, 0.3, 0.9);
