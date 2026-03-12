@@ -250,17 +250,42 @@ function getLocalTexUrlPng(sssUrl) {
 const SUN_RADIUS = 5.5;
 const GLOBAL_ROTATION_SPEED = 0.008;
 
-// ==================== PLANET CONFIG (PBR) ====================
+// Environment map estilo NASA Eyes (reflexos PBR); Sol no topo, espaço embaixo
+function buildRealisticEnvMap() {
+  const size = 256;
+  const data = new Float32Array(size * size * 4);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const u = x / size;
+      const v = y / size;
+      const sunGlow = Math.max(0, 1.0 - Math.sqrt((u - 0.5) ** 2 + (v - 0.15) ** 2) * 3.0);
+      const spaceR = 0.005 + v * 0.02;
+      const spaceG = 0.008 + v * 0.015;
+      const spaceB = 0.025 + v * 0.04;
+      data[i] = spaceR + sunGlow * 2.5;
+      data[i + 1] = spaceG + sunGlow * 1.8;
+      data[i + 2] = spaceB + sunGlow * 0.8;
+      data[i + 3] = 1.0;
+    }
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.FloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ==================== PLANET CONFIG (PBR) — preset NASA Eyes + parte de trás visível ====================
 const PLANETS = {
-  Mercury: { size: 0.38, orbit: 10, speed: 0.048, rot: 0.005, color: 0x8c7853, rough: 0.9, metal: 0.1, nStr: 2.5 },
-  Venus:   { size: 0.95, orbit: 14, speed: 0.035, rot: -0.002, color: 0xffc649, rough: 0.7, metal: 0.0, nStr: 1.0 },
-  Earth:   { size: 1.0,  orbit: 18, speed: 0.029, rot: 0.02,  color: 0x6b93d6, rough: 0.5, metal: 0.1, nStr: 1.5, atmo: true, clouds: true },
-  Mars:    { size: 0.53, orbit: 24, speed: 0.024, rot: 0.018, color: 0xd84a1b, rough: 0.9, metal: 0.05, nStr: 3.6 },
-  Jupiter: { size: 2.8,  orbit: 42, speed: 0.013, rot: 0.045, color: 0xd8ca9d, rough: 0.55, metal: 0.0, nStr: 0.6 },
-  Saturn:  { size: 2.3,  orbit: 58, speed: 0.0097, rot: 0.038, color: 0xead6b8, rough: 0.5, metal: 0.0, nStr: 0.6, rings: true },
-  Uranus:  { size: 1.6,  orbit: 74, speed: 0.0068, rot: -0.03, color: 0xd1e7e7, rough: 0.4, metal: 0.0, nStr: 0.3 },
-  Neptune: { size: 1.5,  orbit: 90, speed: 0.0054, rot: 0.032, color: 0x5b5ddf, rough: 0.4, metal: 0.0, nStr: 0.3 },
-  Pluto:   { size: 0.18, orbit: 100, speed: 0.004, rot: 0.008, color: 0xc4a574, rough: 0.8, metal: 0.0, nStr: 0.4 }
+  Mercury: { size: 0.38, orbit: 10, speed: 0.048, rot: 0.005, color: 0x8C7E6D, rough: 0.92, metal: 0.08, nStr: 1.8, envMapIntensity: 0.15, emissiveIntensity: 0.04 },
+  Venus:   { size: 0.95, orbit: 14, speed: 0.035, rot: -0.002, color: 0xC4A35A, rough: 0.75, metal: 0.05, nStr: 0.8, envMapIntensity: 0.12, emissiveIntensity: 0.04 },
+  Earth:   { size: 1.0,  orbit: 18, speed: 0.029, rot: 0.02,  color: 0x2E6B9E, rough: 0.65, metal: 0.12, nStr: 1.2, envMapIntensity: 0.25, emissiveIntensity: 0.035, atmo: true, clouds: true },
+  Mars:    { size: 0.53, orbit: 24, speed: 0.024, rot: 0.018, color: 0xA0522D, rough: 0.95, metal: 0.04, nStr: 2.0, envMapIntensity: 0.10, emissiveIntensity: 0.04 },
+  Jupiter: { size: 2.8,  orbit: 42, speed: 0.013, rot: 0.045, color: 0xC4A45A, rough: 0.45, metal: 0.02, nStr: 0.3, envMapIntensity: 0.35, emissiveIntensity: 0.05 },
+  Saturn:  { size: 2.3,  orbit: 58, speed: 0.0097, rot: 0.038, color: 0xD4C07A, rough: 0.42, metal: 0.02, nStr: 0.25, envMapIntensity: 0.40, emissiveIntensity: 0.05, rings: true },
+  Uranus:  { size: 1.6,  orbit: 74, speed: 0.0068, rot: -0.03, color: 0x7EC8C8, rough: 0.38, metal: 0.03, nStr: 0.15, envMapIntensity: 0.45, emissiveIntensity: 0.07 },
+  Neptune: { size: 1.5,  orbit: 90, speed: 0.0054, rot: 0.032, color: 0x3366BB, rough: 0.35, metal: 0.03, nStr: 0.15, envMapIntensity: 0.50, emissiveIntensity: 0.09 },
+  Pluto:   { size: 0.18, orbit: 100, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.95, metal: 0.02, nStr: 1.0, envMapIntensity: 0.08, emissiveIntensity: 0.12 }
 };
 
 const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 9;
@@ -898,15 +923,15 @@ function createPlanet(scene, loader, name, cfg, R) {
     new THREE.LineBasicMaterial({ color: '#818181', transparent: true, opacity: 0.2 })
   ));
 
-  // Full PBR Material: diffuse + normal + roughness + metalness maps
+  const envIntensity = cfg.envMapIntensity ?? 0.3;
+  const emissIntensity = cfg.emissiveIntensity ?? 0.04;
   const mat = new THREE.MeshStandardMaterial({
     color: cfg.color,
     roughness: cfg.rough,
     metalness: cfg.metal,
-    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 0.8 : 0.3,
-    // Emissão bem sutil: planetas visíveis, mas sem brilhar demais
+    envMapIntensity: envIntensity,
     emissive: new THREE.Color(cfg.color),
-    emissiveIntensity: 0.18
+    emissiveIntensity: emissIntensity
   });
   mat.metalnessMap = constMap(cfg.metal);
 
@@ -916,7 +941,7 @@ function createPlanet(scene, loader, name, cfg, R) {
     mat.roughnessMap = null;
     mat.color.setHex(cfg.color);
     mat.emissive.copy(new THREE.Color(cfg.color));
-    mat.emissiveIntensity = 0.18;
+    mat.emissiveIntensity = emissIntensity;
     mat.needsUpdate = true;
   };
 
@@ -926,10 +951,9 @@ function createPlanet(scene, loader, name, cfg, R) {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       mat.map = tex;
       mat.color.setHex(cfg.color);
-      // Usa só uma emissão fraca, sem emissiveMap, para não \"estourar\" o planeta
       mat.emissive.copy(new THREE.Color(cfg.color));
       mat.emissiveMap = null;
-      mat.emissiveIntensity = 0.18;
+      mat.emissiveIntensity = emissIntensity;
       const nMap = genNormalMap(tex.image, cfg.nStr);
       if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 0.3, cfg.nStr * 0.3); }
       const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
@@ -1243,6 +1267,7 @@ export default function SolarSystemPhotorealistic() {
     // Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x000000);
+    scene.environment = buildRealisticEnvMap();
     R.scene = scene;
     const solarGroup = new THREE.Group();
     solarGroup.name = 'SolarSystemRoot';
@@ -1261,14 +1286,14 @@ export default function SolarSystemPhotorealistic() {
       alpha: false
     });
     renderer.setSize(w, h);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    // Exposição global intermediária: Sol forte, planetas visíveis
-    renderer.toneMappingExposure = 0.4;
+    renderer.toneMappingExposure = 0.65;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.physicallyCorrectLights = true;
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.pointerEvents = 'auto';
     renderer.domElement.style.backgroundColor = '#000000';
@@ -1276,22 +1301,29 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol: intensidade igual em todos os planetas, mas Sol continua dominante
-    // PointLight com distance = 0 e decay = 0 => sem queda de luz com a distância.
-    const sunLight = new THREE.PointLight(0xFFF8E8, 2200, 0, 0);
+    // Luz principal do Sol — preset NASA Eyes (decay suave)
+    const sunLight = new THREE.PointLight(0xFFF4E0, 3800, 0, 1.2);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(1024, 1024);
+    sunLight.shadow.mapSize.set(2048, 2048);
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 200;
+    sunLight.shadow.camera.far = 500;
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.radius = 4;
     solarGroup.add(sunLight);
-    // Fill light mais contido para manter contraste tipo fotografia
-    const ambientFill = new THREE.AmbientLight(0xb8cce8, 0.38);
+    // Fill: suficiente para ver a parte de trás dos planetas (não perder no escuro)
+    const ambientFill = new THREE.AmbientLight(0x8899bb, 0.22);
     scene.add(ambientFill);
-    const hemilight = new THREE.HemisphereLight(0x78a0d0, 0x385070, 0.58);
+    const hemilight = new THREE.HemisphereLight(0x6688cc, 0x1a1020, 0.28);
     scene.add(hemilight);
+    // Rim light — contorno estilo NASA Eyes
+    const rimLight = new THREE.DirectionalLight(0x4488ff, 0.28);
+    rimLight.position.set(-200, 80, -150);
+    scene.add(rimLight);
+    // Back fill — ilumina a face de trás para não sumir no preto
+    const backFill = new THREE.DirectionalLight(0x334466, 0.14);
+    backFill.position.set(100, -50, 200);
+    scene.add(backFill);
 
     // Post-processing: Bloom + SMAA + Output
     const pr = renderer.getPixelRatio();
@@ -1304,9 +1336,8 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.visibleEdgeColor.set('#FFFFFF');
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
-    // Bloom: só o Sol brilha (threshold alto); strength contido para planetas visíveis sem exagero
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.09, 0.2, 0.9);
-    bloomPass.threshold = 0.94;
+    // Bloom — preset NASA Eyes: só o Sol brilha (threshold alto)
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.25, 0.6, 0.92);
     composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
 
