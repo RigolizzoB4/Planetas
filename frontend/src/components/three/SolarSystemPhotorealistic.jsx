@@ -1225,11 +1225,18 @@ function createAtlasAurora7(solarGroup, loader, R) {
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    // TESTE: Aurora 7 com escala aproximada ao diâmetro da Terra
-    const earthDiameter = PLANETS.Earth.size * 2;
-    const scale = earthDiameter / maxDim;
+    // Escala original do modelo, aproximada a 1.5x o tamanho médio de um asteroide
+    // Asteroides usam escala entre 0.02 e 0.1 → média ~0.06; 1.5x ≈ 0.09
+    const desiredSize = 0.09;
+    const scale = desiredSize / maxDim;
     model.scale.setScalar(scale);
     group.add(model);
+
+    // Label "Aurora 7" acima da nave
+    const label = createLabel('Aurora 7');
+    const labelOffset = maxDim * scale * 1.4;
+    label.position.set(0, labelOffset, 0);
+    group.add(label);
   };
   const createFallbackAurora = () => {
     // Fallback: esfera laranja brilhante do tamanho da Terra, sempre visível
