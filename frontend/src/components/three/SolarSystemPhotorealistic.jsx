@@ -8,6 +8,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
@@ -1130,49 +1131,7 @@ function createAsteroids(scene, R) {
   R.planets['AsteroidBelt'] = mesh;
 }
 
-// Cometas com cauda — trajetórias longe do sistema, passando pela cena (mais realismo)
-const COMET_TAIL_LENGTH = 18;
-const COMET_SPEED = 0.012;
-function createComets(scene, R) {
-  const comets = [];
-  const paths = [
-    { rx: 140, rz: 90, ry: 25, phase: 0 },
-    { rx: 100, rz: 120, ry: -20, phase: Math.PI * 0.6 }
-  ];
-  paths.forEach((path, idx) => {
-    const group = new THREE.Group();
-    group.name = `Comet${idx}`;
-    const headGeo = new THREE.SphereGeometry(0.25, 10, 10);
-    const headMat = new THREE.MeshBasicMaterial({ color: 0xeeddcc });
-    const head = new THREE.Mesh(headGeo, headMat);
-    head.position.set(0, 0, 0);
-    group.add(head);
-    const trailPoints = [];
-    for (let i = 0; i < COMET_TAIL_LENGTH; i++) trailPoints.push(new THREE.Vector3(0, 0, 0));
-    const trailGeo = new THREE.BufferGeometry().setFromPoints(trailPoints);
-    const trailMat = new THREE.LineBasicMaterial({
-      color: 0xaaccff,
-      transparent: true,
-      opacity: 0.5,
-      linewidth: 1
-    });
-    const trail = new THREE.Line(trailGeo, trailMat);
-    trail.frustumCulled = false;
-    group.add(trail);
-    scene.add(group);
-    comets.push({
-      group,
-      trailPoints,
-      trailGeo,
-      angle: path.phase,
-      speed: COMET_SPEED * (idx === 0 ? 1 : 0.85),
-      rx: path.rx,
-      rz: path.rz,
-      ry: path.ry
-    });
-  });
-  R.comets = comets;
-}
+// Cometas removidos para um look mais \"limpo\"/cinematográfico
 
 const PARKER_ORBIT_RADIUS = 6;
 const PARKER_SPEED = 0.04;
@@ -1293,7 +1252,7 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.64;
+    renderer.toneMappingExposure = 0.58;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1336,6 +1295,52 @@ export default function SolarSystemPhotorealistic() {
     bloomPass.threshold = 0.94;
     composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
+
+    // Vignette + color grading suave (look cyan/laranja em S-curve)
+    const filmShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        uVignetteStrength: { value: 0.35 },
+        uVignetteFeather: { value: 0.8 },
+        uLift: { value: new THREE.Vector3(0.02, 0.03, 0.04) },
+        uGamma: { value: 0.95 },
+        uGain: { value: new THREE.Vector3(1.08, 1.0, 0.96) } // ligeiro teal nas sombras, laranja nos highlights
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float uVignetteStrength;
+        uniform float uVignetteFeather;
+        uniform vec3 uLift;
+        uniform float uGamma;
+        uniform vec3 uGain;
+        varying vec2 vUv;
+        void main() {
+          vec4 c = texture2D(tDiffuse, vUv);
+          // Vignette radial
+          vec2 center = vec2(0.5, 0.5);
+          float d = distance(vUv, center);
+          float vig = smoothstep(1.0 - uVignetteFeather, 1.0, d);
+          float vigFactor = mix(1.0, 1.0 - uVignetteStrength, vig);
+          // Lift-Gamma-Gain simples
+          vec3 col = c.rgb;
+          col = max(col + uLift, 0.0);
+          col = pow(col, vec3(uGamma));
+          col *= uGain;
+          col *= vigFactor;
+          gl_FragColor = vec4(col, c.a);
+        }
+      `
+    };
+    const filmPass = new ShaderPass(filmShader);
+    composer.addPass(filmPass);
+
     composer.addPass(new OutputPass());
     R.composer = composer;
     R.outlinePass = outlinePass;
@@ -1384,7 +1389,6 @@ export default function SolarSystemPhotorealistic() {
     createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
-    createComets(scene, R);
     createParkerSolarProbe(solarGroup, R);
     createAtlasAurora7(solarGroup, loader, R);
 
@@ -1702,27 +1706,6 @@ export default function SolarSystemPhotorealistic() {
         R.aurora7Group.rotation.y += 0.01 * timeSpeed * dt;
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
-      if (R.comets?.length) {
-        R.comets.forEach((c) => {
-          c.angle += c.speed * timeSpeed * dt;
-          const a = c.angle;
-          const x = c.rx * Math.cos(a);
-          const z = c.rz * Math.sin(a);
-          const y = c.ry * Math.sin(a * 0.7);
-          c.group.position.set(x, y, z);
-          const velX = -c.rx * Math.sin(a);
-          const velZ = c.rz * Math.cos(a);
-          const velY = c.ry * 0.7 * Math.cos(a * 0.7);
-          const len = Math.sqrt(velX * velX + velY * velY + velZ * velZ) || 1;
-          const step = 18 / len;
-          c.trailPoints[0].set(0, 0, 0);
-          for (let i = 1; i < c.trailPoints.length; i++) {
-            c.trailPoints[i].set(-velX * step * i, -velY * step * i, -velZ * step * i);
-          }
-          c.trailGeo.setFromPoints(c.trailPoints);
-          c.trailGeo.attributes.position.needsUpdate = true;
-        });
-      }
     };
     update();
     return () => cancelAnimationFrame(animId);
