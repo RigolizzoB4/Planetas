@@ -1268,8 +1268,9 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol: face voltada ao Sol como a da Terra (sem exagerar); distância 0 = mesmo brilho em todos
-    const sunLight = new THREE.PointLight(0xFFF8E8, 5200, 0, 2);
+    // Luz do Sol: intensidade igual em todos os planetas, independente da distância
+    // PointLight com distance = 0 e decay = 0 => sem queda de luz com a distância.
+    const sunLight = new THREE.PointLight(0xFFF8E8, 4800, 0, 0);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(1024, 1024);
