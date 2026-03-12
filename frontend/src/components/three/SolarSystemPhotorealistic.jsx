@@ -903,7 +903,7 @@ function createPlanet(scene, loader, name, cfg, R) {
     color: cfg.color,
     roughness: cfg.rough,
     metalness: cfg.metal,
-    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 1.1 : 0.35
+    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 0.8 : 0.3
   });
   mat.metalnessMap = constMap(cfg.metal);
 
@@ -1255,9 +1255,8 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    // Um pouco mais de exposição global (parece foto de longa exposição),
-    // compensada por menos luz ambiente lá embaixo
-    renderer.toneMappingExposure = 0.66;
+    // Exposição global mais contida para evitar aspecto de \"lanterna\" em cada objeto
+    renderer.toneMappingExposure = 0.55;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1268,9 +1267,9 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol: intensidade igual em todos os planetas, independente da distância
+    // Luz do Sol: intensidade igual em todos os planetas, mas mais suave (menos \"lanterna\")
     // PointLight com distance = 0 e decay = 0 => sem queda de luz com a distância.
-    const sunLight = new THREE.PointLight(0xFFF8E8, 4800, 0, 0);
+    const sunLight = new THREE.PointLight(0xFFF8E8, 2600, 0, 0);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(1024, 1024);
