@@ -224,6 +224,7 @@ const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Pro
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 // Base URL para assets: no Netlify e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
 const getBaseUrl = () => (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.PUBLIC_URL || '');
+const AURORA_7_GLB_LOCAL = `${getBaseUrl()}/models/aurora.glb`;
 
 // Skybox 4 camadas: 8K star map + nebulae sutis + star particles + Via Láctea leve (sem repetição, estático)
 const SKYBOX_RADIUS = 5000;
@@ -1201,7 +1202,56 @@ function createParkerSolarProbe(solarGroup, R) {
   R.parkerGroup = group;
 }
 
-// Aurora 7 removida do cenário principal a pedido do usuário
+// Atlas 7 (Aurora 7) — nave Mercury/Atlas 7 (Aurora 7)
+// Aurora 7 em órbita baixa da Terra (LEO)
+const AURORA_7_ORBIT_RADIUS = PLANETS.Earth.size * 3;
+const AURORA_7_SPEED = 0.02;
+function createAtlasAurora7(solarGroup, loader, R) {
+  const group = new THREE.Group();
+  group.name = 'Aurora7';
+  group.userData = { clickable: true, name: 'Aurora 7' };
+  R.aurora7Angle = Math.random() * Math.PI * 2;
+
+  const gltfLoader = new GLTFLoader();
+  const onAurora7Loaded = (gltf) => {
+    const model = gltf.scene;
+    model.traverse((c) => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+        c.userData = { clickable: true, name: 'Aurora 7' };
+      }
+    });
+    const box = new THREE.Box3().setFromObject(model);
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    // Escala aproximada a 1.5x o tamanho médio de um asteroide
+    const desiredSize = 0.09;
+    const scale = desiredSize / maxDim;
+    model.scale.setScalar(scale);
+    group.add(model);
+
+    // Label "Aurora 7" acima da nave
+    const label = createLabel('Aurora 7');
+    const labelOffset = maxDim * scale * 1.4;
+    label.position.set(0, labelOffset, 0);
+    group.add(label);
+  };
+  gltfLoader.load(
+    AURORA_7_GLB_LOCAL,
+    onAurora7Loaded,
+    undefined,
+    () => gltfLoader.load(
+      ATLAS_7_AURORA_7_GLB,
+      onAurora7Loaded,
+      undefined,
+      () => { /* se tudo falhar, nave some silenciosamente */ }
+    )
+  );
+
+  solarGroup.add(group);
+  R.aurora7Group = group;
+}
 
 // ==================== COMPONENT ====================
 export default function SolarSystemPhotorealistic() {
@@ -1227,6 +1277,7 @@ export default function SolarSystemPhotorealistic() {
     R.planets = {}; R.satellites = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
+    R.aurora7Group = null; R.aurora7Angle = 0;
     R.comets = null;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
@@ -1402,6 +1453,7 @@ export default function SolarSystemPhotorealistic() {
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
     createParkerSolarProbe(solarGroup, R);
+    createAtlasAurora7(solarGroup, loader, R);
 
     // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
     let introFallbackId;
@@ -1709,6 +1761,20 @@ export default function SolarSystemPhotorealistic() {
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
+      }
+      if (R.aurora7Group && R.planets.Earth) {
+        // Aurora 7: órbita baixa ao redor da Terra (inclinação leve)
+        R.aurora7Angle += AURORA_7_SPEED * timeSpeed * dt;
+        const a = R.aurora7Angle;
+        const r = AURORA_7_ORBIT_RADIUS;
+        const earthPos = R.planets.Earth.position;
+        const offset = new THREE.Vector3(
+          Math.cos(a) * r,
+          Math.sin(a * 0.6) * r * 0.4,
+          Math.sin(a) * r
+        );
+        R.aurora7Group.position.copy(earthPos).add(offset);
+        R.aurora7Group.lookAt(earthPos);
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
