@@ -1278,8 +1278,8 @@ export default function SolarSystemPhotorealistic() {
     scene.add(solarGroup);
     R.solarGroup = solarGroup;
 
-    // Camera — posição inicial (0, 60, 140), target no Sol
-    const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 2000);
+    // Camera — lente mais "cinematográfica": FOV menor, profundidade mais comprimida
+    const camera = new THREE.PerspectiveCamera(36, w / h, 0.1, 2000);
     camera.position.set(0, 60, 140);
     R.camera = camera;
 
@@ -1340,19 +1340,19 @@ export default function SolarSystemPhotorealistic() {
     R.composer = composer;
     R.outlinePass = outlinePass;
 
-    // Controls — damping maior = câmera mais responsiva (menos travamento no Netlify)
+    // Controls — órbita mais lenta/suave, sensação de câmera de filme
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(0, 0, 0);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.12;
-    controls.minDistance = 0.5;
-    controls.maxDistance = 600;
+    controls.dampingFactor = 0.18;
+    controls.minDistance = 5;
+    controls.maxDistance = 260;
     controls.enablePan = true;
     controls.screenSpacePanning = true;
     controls.maxPolarAngle = Math.PI;
-    controls.panSpeed = 0.8;
-    controls.rotateSpeed = 0.55;
-    controls.zoomSpeed = 2.0;
+    controls.panSpeed = 0.4;
+    controls.rotateSpeed = 0.32;
+    controls.zoomSpeed = 1.2;
     R.controls = controls;
 
     const onControlStart = () => {
