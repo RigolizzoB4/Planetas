@@ -1227,8 +1227,9 @@ function createAtlasAurora7(solarGroup, loader, R) {
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    // Escala maior para ficar visível no contexto do sistema
-    const scale = 0.8 / maxDim;
+    // TESTE: Aurora 7 com escala aproximada ao diâmetro da Terra
+    const earthDiameter = PLANETS.Earth.size * 2;
+    const scale = earthDiameter / maxDim;
     model.scale.setScalar(scale);
     group.add(model);
   };
