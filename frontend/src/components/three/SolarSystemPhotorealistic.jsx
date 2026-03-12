@@ -904,9 +904,9 @@ function createPlanet(scene, loader, name, cfg, R) {
     roughness: cfg.rough,
     metalness: cfg.metal,
     envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 0.8 : 0.3,
-    // Emissão própria para todos os planetas: todos \"acesos\" como o Sol, independentemente da distância
+    // Emissão bem sutil: planetas visíveis, mas sem brilhar demais
     emissive: new THREE.Color(cfg.color),
-    emissiveIntensity: 0.7
+    emissiveIntensity: 0.18
   });
   mat.metalnessMap = constMap(cfg.metal);
 
@@ -916,7 +916,7 @@ function createPlanet(scene, loader, name, cfg, R) {
     mat.roughnessMap = null;
     mat.color.setHex(cfg.color);
     mat.emissive.copy(new THREE.Color(cfg.color));
-    mat.emissiveIntensity = 0.7;
+    mat.emissiveIntensity = 0.18;
     mat.needsUpdate = true;
   };
 
@@ -926,10 +926,10 @@ function createPlanet(scene, loader, name, cfg, R) {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       mat.map = tex;
       mat.color.setHex(cfg.color);
-      // Usa a própria textura como emissiveMap para o planeta brilhar igual em qualquer lugar
-      mat.emissive.copy(new THREE.Color(0xffffff));
-      mat.emissiveMap = tex;
-      mat.emissiveIntensity = 0.7;
+      // Usa só uma emissão fraca, sem emissiveMap, para não \"estourar\" o planeta
+      mat.emissive.copy(new THREE.Color(cfg.color));
+      mat.emissiveMap = null;
+      mat.emissiveIntensity = 0.18;
       const nMap = genNormalMap(tex.image, cfg.nStr);
       if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 0.3, cfg.nStr * 0.3); }
       const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
@@ -1264,8 +1264,8 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    // Exposição global bem mais baixa (≈ 1/3 do brilho anterior)
-    renderer.toneMappingExposure = 0.22;
+    // Exposição global intermediária: Sol forte, planetas visíveis
+    renderer.toneMappingExposure = 0.4;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1276,9 +1276,9 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol: intensidade igual em todos os planetas, bem mais suave (3x menor)
+    // Luz do Sol: intensidade igual em todos os planetas, mas Sol continua dominante
     // PointLight com distance = 0 e decay = 0 => sem queda de luz com a distância.
-    const sunLight = new THREE.PointLight(0xFFF8E8, 850, 0, 0);
+    const sunLight = new THREE.PointLight(0xFFF8E8, 2200, 0, 0);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(1024, 1024);
