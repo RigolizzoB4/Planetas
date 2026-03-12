@@ -1203,7 +1203,8 @@ function createParkerSolarProbe(solarGroup, R) {
 }
 
 // Atlas 7 (Aurora 7) — nave Mercury/Atlas 7 da NASA (GLB com cor)
-const AURORA_7_ORBIT_RADIUS = 22;
+// Aurora 7 orbita próxima entre Vênus e Terra (ajustada para novas órbitas 2x)
+const AURORA_7_ORBIT_RADIUS = 44;
 const AURORA_7_SPEED = 0.02;
 function createAtlasAurora7(solarGroup, loader, R) {
   const group = new THREE.Group();
@@ -1226,7 +1227,8 @@ function createAtlasAurora7(solarGroup, loader, R) {
     const box = new THREE.Box3().setFromObject(model);
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
-    const scale = 0.35 / maxDim;
+    // Escala maior para ficar visível no contexto do sistema
+    const scale = 0.8 / maxDim;
     model.scale.setScalar(scale);
     group.add(model);
   };
@@ -1791,7 +1793,8 @@ export default function SolarSystemPhotorealistic() {
       'Sun Focus': { pos: [0, 15, 35], target: [0, 0, 0] },
       'Earth Focus': { pos: [25, 10, 25], target: [18, 0, 0] },
       'Satellite Ring': { pos: [18, 8, 18], target: [12, 0, 0] },
-      'Top View': { pos: [0, 150, 1], target: [0, 0, 0] },
+      // Vista de cima: mais afastada para caber o sistema inteiro (órbitas 2x)
+      'Top View': { pos: [0, 260, 1], target: [0, 0, 0] },
       'Olho de Deus': { pos: [0, 180, 0.01], target: [0, 0, 0] }
     };
     const preset = viewMode === '2D' ? presets['Top View'] : (presets[cameraPreset] || presets['Overview']);
