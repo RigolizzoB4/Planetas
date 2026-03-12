@@ -255,9 +255,9 @@ const PLANETS = {
   Mercury: { size: 0.38, orbit: 10, speed: 0.048, rot: 0.005, color: 0x8c7853, rough: 0.9, metal: 0.1, nStr: 2.5 },
   Venus:   { size: 0.95, orbit: 14, speed: 0.035, rot: -0.002, color: 0xffc649, rough: 0.7, metal: 0.0, nStr: 1.0 },
   Earth:   { size: 1.0,  orbit: 18, speed: 0.029, rot: 0.02,  color: 0x6b93d6, rough: 0.5, metal: 0.1, nStr: 1.5, atmo: true, clouds: true },
-  Mars:    { size: 0.53, orbit: 24, speed: 0.024, rot: 0.018, color: 0xc1440e, rough: 0.85, metal: 0.1, nStr: 3.0 },
-  Jupiter: { size: 2.8,  orbit: 42, speed: 0.013, rot: 0.045, color: 0xd8ca9d, rough: 0.6, metal: 0.0, nStr: 0.5 },
-  Saturn:  { size: 2.3,  orbit: 58, speed: 0.0097, rot: 0.038, color: 0xead6b8, rough: 0.55, metal: 0.0, nStr: 0.5, rings: true },
+  Mars:    { size: 0.53, orbit: 24, speed: 0.024, rot: 0.018, color: 0xd84a1b, rough: 0.9, metal: 0.05, nStr: 3.6 },
+  Jupiter: { size: 2.8,  orbit: 42, speed: 0.013, rot: 0.045, color: 0xd8ca9d, rough: 0.55, metal: 0.0, nStr: 0.6 },
+  Saturn:  { size: 2.3,  orbit: 58, speed: 0.0097, rot: 0.038, color: 0xead6b8, rough: 0.5, metal: 0.0, nStr: 0.6, rings: true },
   Uranus:  { size: 1.6,  orbit: 74, speed: 0.0068, rot: -0.03, color: 0xd1e7e7, rough: 0.4, metal: 0.0, nStr: 0.3 },
   Neptune: { size: 1.5,  orbit: 90, speed: 0.0054, rot: 0.032, color: 0x5b5ddf, rough: 0.4, metal: 0.0, nStr: 0.3 },
   Pluto:   { size: 0.18, orbit: 100, speed: 0.004, rot: 0.008, color: 0xc4a574, rough: 0.8, metal: 0.0, nStr: 0.4 }
@@ -900,7 +900,10 @@ function createPlanet(scene, loader, name, cfg, R) {
 
   // Full PBR Material: diffuse + normal + roughness + metalness maps
   const mat = new THREE.MeshStandardMaterial({
-    color: cfg.color, roughness: cfg.rough, metalness: cfg.metal, envMapIntensity: 0.3
+    color: cfg.color,
+    roughness: cfg.rough,
+    metalness: cfg.metal,
+    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 1.1 : 0.35
   });
   mat.metalnessMap = constMap(cfg.metal);
 
@@ -1252,7 +1255,9 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.58;
+    // Um pouco mais de exposição global (parece foto de longa exposição),
+    // compensada por menos luz ambiente lá embaixo
+    renderer.toneMappingExposure = 0.66;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1273,10 +1278,10 @@ export default function SolarSystemPhotorealistic() {
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.radius = 4;
     solarGroup.add(sunLight);
-    // Parte de trás e planetas escuros (Plutão, Netuno etc.): mais fill para todos ficarem visíveis
-    const ambientFill = new THREE.AmbientLight(0xb8cce8, 0.65);
+    // Fill light mais contido para manter contraste tipo fotografia
+    const ambientFill = new THREE.AmbientLight(0xb8cce8, 0.38);
     scene.add(ambientFill);
-    const hemilight = new THREE.HemisphereLight(0x78a0d0, 0x385070, 0.92);
+    const hemilight = new THREE.HemisphereLight(0x78a0d0, 0x385070, 0.58);
     scene.add(hemilight);
 
     // Post-processing: Bloom + SMAA + Output
