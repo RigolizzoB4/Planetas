@@ -903,7 +903,10 @@ function createPlanet(scene, loader, name, cfg, R) {
     color: cfg.color,
     roughness: cfg.rough,
     metalness: cfg.metal,
-    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 0.8 : 0.3
+    envMapIntensity: (name === 'Jupiter' || name === 'Saturn') ? 0.8 : 0.3,
+    // Emissão própria para todos os planetas: todos \"acesos\" como o Sol, independentemente da distância
+    emissive: new THREE.Color(cfg.color),
+    emissiveIntensity: 0.7
   });
   mat.metalnessMap = constMap(cfg.metal);
 
@@ -912,6 +915,8 @@ function createPlanet(scene, loader, name, cfg, R) {
     mat.normalMap = null;
     mat.roughnessMap = null;
     mat.color.setHex(cfg.color);
+    mat.emissive.copy(new THREE.Color(cfg.color));
+    mat.emissiveIntensity = 0.7;
     mat.needsUpdate = true;
   };
 
@@ -921,6 +926,10 @@ function createPlanet(scene, loader, name, cfg, R) {
       tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
       mat.map = tex;
       mat.color.setHex(cfg.color);
+      // Usa a própria textura como emissiveMap para o planeta brilhar igual em qualquer lugar
+      mat.emissive.copy(new THREE.Color(0xffffff));
+      mat.emissiveMap = tex;
+      mat.emissiveIntensity = 0.7;
       const nMap = genNormalMap(tex.image, cfg.nStr);
       if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 0.3, cfg.nStr * 0.3); }
       const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
