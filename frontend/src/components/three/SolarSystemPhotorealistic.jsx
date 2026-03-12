@@ -1255,8 +1255,8 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    // Exposição global mais contida para evitar aspecto de \"lanterna\" em cada objeto
-    renderer.toneMappingExposure = 0.55;
+    // Exposição global bem mais baixa (≈ 1/3 do brilho anterior)
+    renderer.toneMappingExposure = 0.22;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1267,9 +1267,9 @@ export default function SolarSystemPhotorealistic() {
     container.appendChild(renderer.domElement);
     R.renderer = renderer;
 
-    // Luz do Sol: intensidade igual em todos os planetas, mas mais suave (menos \"lanterna\")
+    // Luz do Sol: intensidade igual em todos os planetas, bem mais suave (3x menor)
     // PointLight com distance = 0 e decay = 0 => sem queda de luz com a distância.
-    const sunLight = new THREE.PointLight(0xFFF8E8, 2600, 0, 0);
+    const sunLight = new THREE.PointLight(0xFFF8E8, 850, 0, 0);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(1024, 1024);
