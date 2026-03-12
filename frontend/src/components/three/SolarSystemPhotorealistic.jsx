@@ -1203,16 +1203,14 @@ function createParkerSolarProbe(solarGroup, R) {
 }
 
 // Atlas 7 (Aurora 7) — nave Mercury/Atlas 7 da NASA (GLB com cor)
-// Aurora 7 orbita próxima entre Vênus e Terra (ajustada para novas órbitas 2x)
-const AURORA_7_ORBIT_RADIUS = 44;
+// Aurora 7 em órbita baixa da Terra (LEO) — raio pequeno em torno da Terra
+const AURORA_7_ORBIT_RADIUS = PLANETS.Earth.size * 3;
 const AURORA_7_SPEED = 0.02;
 function createAtlasAurora7(solarGroup, loader, R) {
   const group = new THREE.Group();
   group.name = 'Aurora7';
   group.userData = { clickable: true, name: 'Aurora 7' };
   R.aurora7Angle = Math.random() * Math.PI * 2;
-  group.position.x = Math.cos(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
-  group.position.z = Math.sin(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
 
   const gltfLoader = new GLTFLoader();
   const onAurora7Loaded = (gltf) => {
@@ -1772,11 +1770,19 @@ export default function SolarSystemPhotorealistic() {
         R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
       }
-      if (R.aurora7Group) {
+      if (R.aurora7Group && R.planets.Earth) {
+        // Aurora 7: órbita baixa ao redor da Terra (inclinação leve)
         R.aurora7Angle += AURORA_7_SPEED * timeSpeed * dt;
-        R.aurora7Group.position.x = Math.cos(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
-        R.aurora7Group.position.z = Math.sin(R.aurora7Angle) * AURORA_7_ORBIT_RADIUS;
-        R.aurora7Group.rotation.y += 0.01 * timeSpeed * dt;
+        const a = R.aurora7Angle;
+        const r = AURORA_7_ORBIT_RADIUS;
+        const earthPos = R.planets.Earth.position;
+        const offset = new THREE.Vector3(
+          Math.cos(a) * r,
+          Math.sin(a * 0.6) * r * 0.4, // pequena inclinação
+          Math.sin(a) * r
+        );
+        R.aurora7Group.position.copy(earthPos).add(offset);
+        R.aurora7Group.lookAt(earthPos);
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
