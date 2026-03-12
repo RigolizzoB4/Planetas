@@ -1233,7 +1233,31 @@ function createAtlasAurora7(solarGroup, loader, R) {
     model.scale.setScalar(scale);
     group.add(model);
   };
-  gltfLoader.load(AURORA_7_GLB_LOCAL, onAurora7Loaded, undefined, () => gltfLoader.load(ATLAS_7_AURORA_7_GLB, onAurora7Loaded, undefined, () => {}));
+  const createFallbackAurora = () => {
+    // Fallback: esfera laranja brilhante do tamanho da Terra, sempre visível
+    const geo = new THREE.SphereGeometry(PLANETS.Earth.size, 32, 32);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xff6b35,
+      emissive: 0xff6b35,
+      emissiveIntensity: 0.4,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = { clickable: true, name: 'Aurora 7 (fallback)' };
+    group.add(mesh);
+  };
+  gltfLoader.load(
+    AURORA_7_GLB_LOCAL,
+    onAurora7Loaded,
+    undefined,
+    () => gltfLoader.load(
+      ATLAS_7_AURORA_7_GLB,
+      onAurora7Loaded,
+      undefined,
+      () => createFallbackAurora()
+    )
+  );
 
   solarGroup.add(group);
   R.aurora7Group = group;
