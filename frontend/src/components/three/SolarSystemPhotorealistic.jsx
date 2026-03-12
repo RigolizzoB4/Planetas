@@ -275,23 +275,23 @@ function buildRealisticEnvMap() {
   return tex;
 }
 
-// ==================== PLANET CONFIG (PBR) — preset NASA Eyes + parte de trás visível ====================
+// ==================== PLANET CONFIG (PBR) — preset NASA Eyes + órbitas 2x mais distantes ====================
 const PLANETS = {
-  // órbitas 1.5x mais distantes entre si (mantendo raios relativos)
-  Mercury: { size: 0.38, orbit: 15, speed: 0.048, rot: 0.005, color: 0x8C7E6D, rough: 0.92, metal: 0.08, nStr: 1.8, envMapIntensity: 0.15, emissiveIntensity: 0.04 },
-  Venus:   { size: 0.95, orbit: 21, speed: 0.035, rot: -0.002, color: 0xC4A35A, rough: 0.75, metal: 0.05, nStr: 0.8, envMapIntensity: 0.12, emissiveIntensity: 0.04 },
-  Earth:   { size: 1.0,  orbit: 27, speed: 0.029, rot: 0.02,  color: 0x2E6B9E, rough: 0.65, metal: 0.12, nStr: 1.2, envMapIntensity: 0.25, emissiveIntensity: 0.035, atmo: true, clouds: true },
-  Mars:    { size: 0.53, orbit: 36, speed: 0.024, rot: 0.018, color: 0xA0522D, rough: 0.95, metal: 0.04, nStr: 2.0, envMapIntensity: 0.10, emissiveIntensity: 0.04 },
-  Jupiter: { size: 2.8,  orbit: 63, speed: 0.013, rot: 0.045, color: 0xC4A45A, rough: 0.45, metal: 0.02, nStr: 0.3, envMapIntensity: 0.35, emissiveIntensity: 0.05 },
-  Saturn:  { size: 2.3,  orbit: 87, speed: 0.0097, rot: 0.038, color: 0xD4C07A, rough: 0.42, metal: 0.02, nStr: 0.25, envMapIntensity: 0.40, emissiveIntensity: 0.05, rings: true },
-  Uranus:  { size: 1.6,  orbit: 111, speed: 0.0068, rot: -0.03, color: 0x7EC8C8, rough: 0.38, metal: 0.03, nStr: 0.15, envMapIntensity: 0.45, emissiveIntensity: 0.07 },
-  Neptune: { size: 1.5,  orbit: 135, speed: 0.0054, rot: 0.032, color: 0x3366BB, rough: 0.35, metal: 0.03, nStr: 0.15, envMapIntensity: 0.50, emissiveIntensity: 0.09 },
-  Pluto:   { size: 0.18, orbit: 150, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.95, metal: 0.02, nStr: 1.0, envMapIntensity: 0.08, emissiveIntensity: 0.12 }
+  // órbitas dobradas em relação ao layout original (mais espaço para estações)
+  Mercury: { size: 0.38, orbit: 20,  speed: 0.048, rot: 0.005, color: 0x8C7E6D, rough: 0.92, metal: 0.08, nStr: 1.8, envMapIntensity: 0.15, emissiveIntensity: 0.04 },
+  Venus:   { size: 0.95, orbit: 28,  speed: 0.035, rot: -0.002, color: 0xC4A35A, rough: 0.75, metal: 0.05, nStr: 0.8, envMapIntensity: 0.12, emissiveIntensity: 0.04 },
+  Earth:   { size: 1.0,  orbit: 36,  speed: 0.029, rot: 0.02,  color: 0x2E6B9E, rough: 0.65, metal: 0.12, nStr: 1.2, envMapIntensity: 0.25, emissiveIntensity: 0.035, atmo: true, clouds: true },
+  Mars:    { size: 0.53, orbit: 48,  speed: 0.024, rot: 0.018, color: 0xA0522D, rough: 0.95, metal: 0.04, nStr: 2.0, envMapIntensity: 0.10, emissiveIntensity: 0.04 },
+  Jupiter: { size: 2.8,  orbit: 84,  speed: 0.013, rot: 0.045, color: 0xC4A45A, rough: 0.45, metal: 0.02, nStr: 0.3, envMapIntensity: 0.35, emissiveIntensity: 0.05 },
+  Saturn:  { size: 2.3,  orbit: 116, speed: 0.0097, rot: 0.038, color: 0xD4C07A, rough: 0.42, metal: 0.02, nStr: 0.25, envMapIntensity: 0.40, emissiveIntensity: 0.05, rings: true },
+  Uranus:  { size: 1.6,  orbit: 148, speed: 0.0068, rot: -0.03, color: 0x7EC8C8, rough: 0.38, metal: 0.03, nStr: 0.15, envMapIntensity: 0.45, emissiveIntensity: 0.07 },
+  Neptune: { size: 1.5,  orbit: 180, speed: 0.0054, rot: 0.032, color: 0x3366BB, rough: 0.35, metal: 0.03, nStr: 0.15, envMapIntensity: 0.50, emissiveIntensity: 0.09 },
+  Pluto:   { size: 0.18, orbit: 200, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.95, metal: 0.02, nStr: 1.0, envMapIntensity: 0.08, emissiveIntensity: 0.12 }
 };
 
-const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 14; // acompanha o novo raio de Júpiter
-const ASTEROID_BELT_INNER = 45;  // 30 * 1.5
-const ASTEROID_BELT_OUTER = 57;  // 38 * 1.5
+const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 20;
+const ASTEROID_BELT_INNER = 60;  // 30 * 2
+const ASTEROID_BELT_OUTER = 76;  // 38 * 2
 
 // ==================== SATELLITE CONFIG (luas + Aurora 7 + Jason-2) ====================
 const SATELLITES = [
