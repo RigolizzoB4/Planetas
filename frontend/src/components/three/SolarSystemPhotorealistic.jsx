@@ -1418,54 +1418,54 @@ export default function SolarSystemPhotorealistic() {
           if (R.aurora7) return;
 
           const model = gltf.scene;
-          // Normalizar escala: 2 unidades de largura na cena
+          // Escalar para o tamanho da Terra (diameter ≈ 2 unidades = Earth.size * 2)
           const box3 = new THREE.Box3().setFromObject(model);
           const sz = box3.getSize(new THREE.Vector3());
           const maxD = Math.max(sz.x, sz.y, sz.z) || 1;
-          const sc = 2.0 / maxD;
+          const EARTH_SIZE = 1.0; // igual ao PLANETS.Earth.size
+          const sc = (EARTH_SIZE * 2) / maxD; // diâmetro = 2 unidades (igual à Terra)
           model.position.sub(box3.getCenter(new THREE.Vector3()));
           model.scale.setScalar(sc);
 
-          // Forçar material visível com emissivo alto
+          // COR LARANJA BRILHANTE — impossível de não ver
           model.traverse(n => {
             if (!n.isMesh) return;
             n.castShadow = true;
             n.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
-            const old = Array.isArray(n.material) ? n.material[0] : n.material;
             n.material = new THREE.MeshStandardMaterial({
-              map: old?.map || null,
-              color: old?.map ? 0xffffff : 0xCCDDEE,
-              metalness: 0.8,
-              roughness: 0.25,
-              emissive: new THREE.Color(0x2244aa),
-              emissiveIntensity: 0.7,
+              color: new THREE.Color(0xFF6600),      // laranja forte
+              metalness: 0.5,
+              roughness: 0.3,
+              emissive: new THREE.Color(0xFF3300),   // brilho laranja próprio
+              emissiveIntensity: 1.2,                // muito brilhante
             });
           });
 
-          // Grupo: modelo + label + luz própria
+          // Grupo: modelo + label + luz laranja própria
           const a7Group = new THREE.Group();
           a7Group.name = 'Aurora7';
           a7Group.userData = { clickable: true, name: 'Aurora 7' };
           a7Group.add(model);
 
           const a7Label = createLabel('Aurora 7');
-          a7Label.position.y = 2.5;
+          a7Label.position.y = 2.8;
           a7Group.add(a7Label);
 
-          const a7Light = new THREE.PointLight(0xffffff, 6.0, 20);
+          // Luz laranja — ilumina a própria nave e a região ao redor
+          const a7Light = new THREE.PointLight(0xFF6600, 8.0, 25);
           a7Group.add(a7Light);
 
-          // Posicionar na órbita da Terra (coordenadas locais relativas à Terra)
+          // Posição: abaixo da Terra (y = -3) na órbita
           const a7Angle = 2.5;
           const a7Orbit = 3.8;
-          a7Group.position.set(Math.cos(a7Angle) * a7Orbit, 0, Math.sin(a7Angle) * a7Orbit);
+          a7Group.position.set(Math.cos(a7Angle) * a7Orbit, -3, Math.sin(a7Angle) * a7Orbit);
 
           // Adicionar como filha da Terra (ou solarGroup como fallback)
           const earthMesh = R.planets['Earth'];
           (earthMesh || solarGroup).add(a7Group);
 
           R.aurora7 = a7Group;
-          R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, speed: 0.25 });
+          R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: -3, speed: 0.25 });
 
           // Voar câmera para Aurora 1x
           if (!R.introStarted) {
@@ -1755,7 +1755,7 @@ export default function SolarSystemPhotorealistic() {
           m.angle += m.speed * timeSpeed * dt;
           m.mesh.position.set(
             Math.cos(m.angle) * m.orbitRadius,
-            0,
+            m.yOffset || 0,
             Math.sin(m.angle) * m.orbitRadius
           );
         });
