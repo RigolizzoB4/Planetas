@@ -1772,7 +1772,9 @@ export default function SolarSystemPhotorealistic() {
       if (R.auroraFallback && R.planets['Earth']) {
         const earthWorld = new THREE.Vector3();
         R.planets['Earth'].getWorldPosition(earthWorld);
-        R.auroraFallback.position.set(earthWorld.x, earthWorld.y - 10, earthWorld.z + 10);
+        // Marcador de diagnóstico: ao lado direito da Terra, bem visível
+        R.auroraFallback.position.set(earthWorld.x + 14, earthWorld.y + 1, earthWorld.z);
+        R.auroraFallback.scale.setScalar(2.4);
       }
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
