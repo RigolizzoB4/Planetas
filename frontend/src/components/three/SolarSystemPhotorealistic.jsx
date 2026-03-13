@@ -225,9 +225,9 @@ const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Pro
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 // Base URL para assets: no Netlify e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
 const getBaseUrl = () => (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.PUBLIC_URL || '');
-// Aurora 7 local — tenta Aurora_7.glb e aurora.glb (qual existir em public/models/)
-const AURORA_7_GLB_LOCAL = `${getBaseUrl()}/models/Aurora_7.glb`;
-const AURORA_7_GLB_ALT = `${getBaseUrl()}/models/aurora.glb`;
+// Aurora 7 — caminhos absolutos simples (sem getBaseUrl) para máxima compatibilidade Vercel/Netlify/local
+const AURORA_7_GLB_ALT = `${process.env.PUBLIC_URL || ''}/models/aurora.glb`;
+const AURORA_7_GLB_LOCAL = `${process.env.PUBLIC_URL || ''}/models/Aurora_7.glb`;
 
 // Skybox 4 camadas: 8K star map + nebulae sutis + star particles + Via Láctea leve (sem repetição, estático)
 const SKYBOX_RADIUS = 5000;
@@ -1297,24 +1297,35 @@ function createAtlasAurora7(solarGroup, loader, R) {
       node.receiveShadow = true;
       node.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
 
-      // Converter para MeshStandardMaterial se necessário (GLBs com lambert/blinn/basic)
-      const oldMat = Array.isArray(node.material) ? node.material[0] : node.material;
-      if (!oldMat) return;
-
-      const mn = (oldMat.name || '').toLowerCase();
-      let newMat;
-
-      if (mn.includes('lambert2') || mn.includes('anisotropic')) {
-        newMat = new THREE.MeshStandardMaterial({ color: 0xC8960C, metalness: 1.0, roughness: 0.03, emissive: new THREE.Color(0x443200), emissiveIntensity: 0.6 });
-      } else if (mn.includes('blinn3') || mn.includes('lambert6')) {
-        newMat = new THREE.MeshStandardMaterial({ color: 0x1A3A6B, metalness: 0.9, roughness: 0.14, emissive: new THREE.Color(0x0a1a35), emissiveIntensity: 0.5 });
-      } else if (mn.includes('lambert3')) {
-        newMat = new THREE.MeshStandardMaterial({ color: 0xFF2200, metalness: 0.2, roughness: 0.5, emissive: new THREE.Color(0xFF2200), emissiveIntensity: 0.8 });
-      } else {
-        // Material genérico: cinza metálico com emissivo suficiente para ser visto no espaço escuro
-        newMat = new THREE.MeshStandardMaterial({ color: 0xD8DDE0, metalness: 0.72, roughness: 0.22, emissive: new THREE.Color(0x556677), emissiveIntensity: 0.5 });
-      }
-      node.material = newMat;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((mat, i) => {
+        if (!mat) return;
+        // Se já for MeshStandardMaterial (GLB moderno), apenas reforça emissivo para visibilidade no espaço
+        if (mat.isMeshStandardMaterial) {
+          mat.emissive = mat.emissive || new THREE.Color(0x556677);
+          mat.emissiveIntensity = Math.max(mat.emissiveIntensity || 0, 0.4);
+          mat.needsUpdate = true;
+          return;
+        }
+        // Para materiais legados (lambert/blinn/basic), cria MeshStandardMaterial preservando a textura
+        const oldMap = mat.map || null;
+        const mn = (mat.name || '').toLowerCase();
+        let newMat;
+        if (mn.includes('lambert2') || mn.includes('anisotropic')) {
+          newMat = new THREE.MeshStandardMaterial({ map: oldMap, color: oldMap ? 0xffffff : 0xC8960C, metalness: 1.0, roughness: 0.03, emissive: new THREE.Color(0x443200), emissiveIntensity: 0.6 });
+        } else if (mn.includes('blinn3') || mn.includes('lambert6')) {
+          newMat = new THREE.MeshStandardMaterial({ map: oldMap, color: oldMap ? 0xffffff : 0x1A3A6B, metalness: 0.9, roughness: 0.14, emissive: new THREE.Color(0x0a1a35), emissiveIntensity: 0.5 });
+        } else if (mn.includes('lambert3')) {
+          newMat = new THREE.MeshStandardMaterial({ map: oldMap, color: oldMap ? 0xffffff : 0xFF2200, metalness: 0.2, roughness: 0.5, emissive: new THREE.Color(0xFF2200), emissiveIntensity: 0.8 });
+        } else {
+          newMat = new THREE.MeshStandardMaterial({ map: oldMap, color: oldMap ? 0xffffff : 0xD8DDE0, metalness: 0.72, roughness: 0.22, emissive: new THREE.Color(0x556677), emissiveIntensity: 0.5 });
+        }
+        if (Array.isArray(node.material)) {
+          node.material[i] = newMat;
+        } else {
+          node.material = newMat;
+        }
+      });
     });
 
     const a7Group = new THREE.Group();
