@@ -1407,12 +1407,18 @@ export default function SolarSystemPhotorealistic() {
     createParkerSolarProbe(solarGroup, R);
     // ===== AURORA 7 — posição FIXA no solarGroup (órbita da Terra), sem depender de earthMesh =====
     {
-      // Earth.orbit = 36 — posição fixa fora do Sol (raio 5.5) e na órbita da Terra
-      const A7_WORLD_X = PLANETS.Earth.orbit;  // 36
-      const A7_WORLD_Y = 0;
-      const A7_WORLD_Z = 0;
+      // IMPORTANTE: a Terra nasce com ângulo aleatório no start.
+      // Portanto, não podemos usar x=36 fixo; precisamos ler a posição real da Terra.
+      const A7_WORLD_X = PLANETS.Earth.orbit;  // fallback
+      const A7_WORLD_Y = 0;                    // fallback
+      const A7_WORLD_Z = 0;                    // fallback
       const A7_OFFSET_Y = -10;
       const A7_OFFSET_Z = 10;
+      scene.updateMatrixWorld(true);
+      const earthStart = new THREE.Vector3(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
+      if (R.planets['Earth']) {
+        R.planets['Earth'].getWorldPosition(earthStart);
+      }
 
       const a7Group = new THREE.Group();
       a7Group.name = 'Aurora7';
@@ -1442,7 +1448,7 @@ export default function SolarSystemPhotorealistic() {
 
       // Adicionar DIRETAMENTE à scene (não ao solarGroup que rotaciona!)
       // Posição world-space fixa — câmera sempre encontra
-      a7Group.position.set(A7_WORLD_X, A7_WORLD_Y + A7_OFFSET_Y, A7_WORLD_Z + A7_OFFSET_Z);
+      a7Group.position.set(earthStart.x, earthStart.y + A7_OFFSET_Y, earthStart.z + A7_OFFSET_Z);
       scene.add(a7Group);
 
       R.aurora7 = a7Group;
@@ -1450,8 +1456,8 @@ export default function SolarSystemPhotorealistic() {
 
       // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
       // Isso garante que a câmera começa na Aurora independente de qualquer timing
-      camera.position.set(A7_WORLD_X + 8, 2, A7_WORLD_Z + 26);
-      controls.target.set(A7_WORLD_X, A7_WORLD_Y + A7_OFFSET_Y, A7_WORLD_Z + A7_OFFSET_Z);
+      camera.position.set(earthStart.x + 8, earthStart.y + 2, earthStart.z + 26);
+      controls.target.set(earthStart.x, earthStart.y + A7_OFFSET_Y, earthStart.z + A7_OFFSET_Z);
       controls.update();
       // Evita que o efeito de cameraPreset sobrescreva imediatamente o foco da Aurora no mount
       R.initialZoomDone = false;
