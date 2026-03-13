@@ -1416,58 +1416,44 @@ export default function SolarSystemPhotorealistic() {
       a7Group.name = 'Aurora7';
       a7Group.userData = { clickable: true, name: 'Aurora 7' };
 
-      // Esfera laranja garantida
-      const sphereGeo = new THREE.SphereGeometry(1.0, 32, 32);
+      // Esfera laranja GRANDE — raio 3 unidades, impossível não ver
+      const sphereGeo = new THREE.SphereGeometry(3.0, 32, 32);
       const sphereMat = new THREE.MeshStandardMaterial({
         color: 0xFF6600,
         emissive: new THREE.Color(0xFF3300),
-        emissiveIntensity: 1.5,
+        emissiveIntensity: 2.0,
       });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
       sphere.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
       a7Group.add(sphere);
 
       const a7Label = createLabel('Aurora 7');
-      a7Label.position.y = 2.2;
+      a7Label.position.y = 4.5;
       a7Group.add(a7Label);
 
-      a7Group.add(new THREE.PointLight(0xFF6600, 8.0, 20));
+      a7Group.add(new THREE.PointLight(0xFF6600, 12.0, 40));
 
       // Adicionar ao solarGroup com posição absoluta (não depende de earthMesh)
       a7Group.position.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
       solarGroup.add(a7Group);
 
       R.aurora7 = a7Group;
-      // Registra no satellites para orbitar junto com a Terra visualmente
       R.satellites.push({ mesh: a7Group, angle: 0, orbitRadius: PLANETS.Earth.orbit });
 
-      // Intro: câmera voa para posição FIXA (sem getWorldPosition)
+      // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
+      // Isso garante que a câmera começa na Aurora independente de qualquer timing
+      camera.position.set(A7_WORLD_X + 5, 10, A7_WORLD_Z + 20);
+      controls.target.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
+      controls.update();
+      R.initialZoomDone = true;
       R.introStarted = true;
-      controls.enabled = false;
-      R.isAnimatingFocus = true;
-      const introTarget = new THREE.Vector3(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
-      const introCam = new THREE.Vector3(A7_WORLD_X, 8, A7_WORLD_Z + 15);
+      // Abre painel Aurora após 1s
       setTimeout(() => {
-        gsap.to(camera.position, {
-          x: introCam.x, y: introCam.y, z: introCam.z,
-          duration: 3.0, ease: 'power2.inOut',
-          onComplete: () => {
-            controls.enabled = true;
-            R.isAnimatingFocus = false;
-            R.initialZoomDone = true;
-            controls.target.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
-            controls.update();
-            if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
-              R.auroraPanelShown = true;
-              R.latestSetAuroraPanelOpen(true);
-            }
-          }
-        });
-        gsap.to(controls.target, {
-          x: introTarget.x, y: introTarget.y, z: introTarget.z,
-          duration: 3.0, ease: 'power2.inOut'
-        });
-      }, 500);
+        if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
+          R.auroraPanelShown = true;
+          R.latestSetAuroraPanelOpen(true);
+        }
+      }, 1000);
 
       // Tenta carregar GLB — se carregar com meshes, substitui esfera
       const a7DracoLoader = new DRACOLoader();
