@@ -1405,20 +1405,13 @@ export default function SolarSystemPhotorealistic() {
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
     createParkerSolarProbe(solarGroup, R);
-    // ===== AURORA 7 — posição FIXA no solarGroup (órbita da Terra), sem depender de earthMesh =====
+    // ===== AURORA 7 — filha da Terra (offset fixo abaixo da órbita) =====
     {
-      // IMPORTANTE: a Terra nasce com ângulo aleatório no start.
-      // Portanto, não podemos usar x=36 fixo; precisamos ler a posição real da Terra.
-      const A7_WORLD_X = PLANETS.Earth.orbit;  // fallback
-      const A7_WORLD_Y = 0;                    // fallback
-      const A7_WORLD_Z = 0;                    // fallback
-      const A7_OFFSET_Y = -10;
-      const A7_OFFSET_Z = 10;
+      const A7_OFFSET_Y = -10; // abaixo da Terra
+      const A7_OFFSET_Z = 10;  // levemente atrás, para não sobrepor
       scene.updateMatrixWorld(true);
-      const earthStart = new THREE.Vector3(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
-      if (R.planets['Earth']) {
-        R.planets['Earth'].getWorldPosition(earthStart);
-      }
+      const earthMesh = R.planets['Earth'];
+      if (!earthMesh) return;
 
       const a7Group = new THREE.Group();
       a7Group.name = 'Aurora7';
@@ -1436,6 +1429,7 @@ export default function SolarSystemPhotorealistic() {
       });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
       sphere.renderOrder = 999;
+      sphere.frustumCulled = false;
       sphere.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
       a7Group.add(sphere);
 
@@ -1446,18 +1440,19 @@ export default function SolarSystemPhotorealistic() {
 
       a7Group.add(new THREE.PointLight(0xFF6600, 12.0, 40));
 
-      // Adicionar DIRETAMENTE à scene (não ao solarGroup que rotaciona!)
-      // Posição world-space fixa — câmera sempre encontra
-      a7Group.position.set(earthStart.x, earthStart.y + A7_OFFSET_Y, earthStart.z + A7_OFFSET_Z);
-      scene.add(a7Group);
+      // Aurora orbita junto com a Terra por hierarquia
+      a7Group.position.set(0, A7_OFFSET_Y, A7_OFFSET_Z);
+      earthMesh.add(a7Group);
 
       R.aurora7 = a7Group;
       // NÃO adiciona ao R.satellites — fica fixo enquanto testamos visibilidade
 
       // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
       // Isso garante que a câmera começa na Aurora independente de qualquer timing
-      camera.position.set(earthStart.x + 8, earthStart.y + 2, earthStart.z + 26);
-      controls.target.set(earthStart.x, earthStart.y + A7_OFFSET_Y, earthStart.z + A7_OFFSET_Z);
+      const auroraWorld = new THREE.Vector3();
+      a7Group.getWorldPosition(auroraWorld);
+      camera.position.set(auroraWorld.x + 8, auroraWorld.y + 2, auroraWorld.z + 26);
+      controls.target.set(auroraWorld.x, auroraWorld.y, auroraWorld.z);
       controls.update();
       // Evita que o efeito de cameraPreset sobrescreva imediatamente o foco da Aurora no mount
       R.initialZoomDone = false;
@@ -1487,6 +1482,7 @@ export default function SolarSystemPhotorealistic() {
           gltf.scene.scale.setScalar(2.0 / md);
           gltf.scene.traverse(n => {
             if (!n.isMesh) return;
+            n.frustumCulled = false;
             n.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
             n.material = new THREE.MeshStandardMaterial({
               color: 0xFF6600, emissive: new THREE.Color(0xFF3300), emissiveIntensity: 1.0,
@@ -1762,12 +1758,7 @@ export default function SolarSystemPhotorealistic() {
         s.mesh.position.z = Math.sin(s.angle) * s.orbitRadius;
         s.mesh.rotation.y += 0.02 * timeSpeed * dt;
       });
-      // Aurora sempre abaixo da Terra (world-space), independente de rotação do solarGroup
-      if (R.aurora7 && R.planets['Earth']) {
-        const earthWorld = new THREE.Vector3();
-        R.planets['Earth'].getWorldPosition(earthWorld);
-        R.aurora7.position.set(earthWorld.x, earthWorld.y - 10, earthWorld.z + 10);
-      }
+      // Aurora é filha da Terra; não precisa reposicionamento por frame
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
