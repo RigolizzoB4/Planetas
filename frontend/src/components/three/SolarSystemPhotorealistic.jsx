@@ -1230,13 +1230,15 @@ function createAtlasAurora7(solarGroup, loader, R) {
         target.add(new THREE.Vector3(0, 2, 0));
       }
 
-      const camPos = target.clone().add(new THREE.Vector3(0, 8, 25));
+      // Câmera a 8 unidades de Aurora (distância curta = modelo ocupa ~15% da tela)
+      const camPos = target.clone().add(new THREE.Vector3(0, 3, 8));
 
       const onComplete = () => {
         controls.enabled = true;
         R.isAnimatingFocus = false;
         R.initialZoomDone = true;
-        controls.target.set(0, 0, 0);
+        // NÃO resetar controls.target para (0,0,0) — mantém câmera olhando para Aurora
+        controls.target.copy(target);
         controls.update();
         if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
           R.auroraPanelShown = true;
@@ -1272,8 +1274,8 @@ function createAtlasAurora7(solarGroup, loader, R) {
   const aurora7Loader = new GLTFLoader();
   aurora7Loader.setDRACOLoader(dracoLoader);
 
-  // Tamanho alvo da Aurora na cena (em unidades do mundo Three.js)
-  const AURORA_TARGET_SIZE = 0.8;
+  // Tamanho alvo da Aurora na cena — 2 unidades = claramente visível ao abrir
+  const AURORA_TARGET_SIZE = 2.0;
 
   const onAuroraLoaded = (gltf) => {
     if (R.aurora7) return;
