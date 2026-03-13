@@ -1411,6 +1411,8 @@ export default function SolarSystemPhotorealistic() {
       const A7_WORLD_X = PLANETS.Earth.orbit;  // 36
       const A7_WORLD_Y = 0;
       const A7_WORLD_Z = 0;
+      const A7_OFFSET_Y = -10;
+      const A7_OFFSET_Z = 10;
 
       const a7Group = new THREE.Group();
       a7Group.name = 'Aurora7';
@@ -1440,7 +1442,7 @@ export default function SolarSystemPhotorealistic() {
 
       // Adicionar DIRETAMENTE à scene (não ao solarGroup que rotaciona!)
       // Posição world-space fixa — câmera sempre encontra
-      a7Group.position.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
+      a7Group.position.set(A7_WORLD_X, A7_WORLD_Y + A7_OFFSET_Y, A7_WORLD_Z + A7_OFFSET_Z);
       scene.add(a7Group);
 
       R.aurora7 = a7Group;
@@ -1448,8 +1450,8 @@ export default function SolarSystemPhotorealistic() {
 
       // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
       // Isso garante que a câmera começa na Aurora independente de qualquer timing
-      camera.position.set(A7_WORLD_X + 5, 10, A7_WORLD_Z + 20);
-      controls.target.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
+      camera.position.set(A7_WORLD_X + 8, 2, A7_WORLD_Z + 26);
+      controls.target.set(A7_WORLD_X, A7_WORLD_Y + A7_OFFSET_Y, A7_WORLD_Z + A7_OFFSET_Z);
       controls.update();
       // Evita que o efeito de cameraPreset sobrescreva imediatamente o foco da Aurora no mount
       R.initialZoomDone = false;
@@ -1758,7 +1760,7 @@ export default function SolarSystemPhotorealistic() {
       if (R.aurora7 && R.planets['Earth']) {
         const earthWorld = new THREE.Vector3();
         R.planets['Earth'].getWorldPosition(earthWorld);
-        R.aurora7.position.set(earthWorld.x, earthWorld.y - 8, earthWorld.z);
+        R.aurora7.position.set(earthWorld.x, earthWorld.y - 10, earthWorld.z + 10);
       }
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
