@@ -11,7 +11,7 @@ Este documento consolida a análise do workspace em: estrutura de pastas, qualid
 ```
 Planetas/
 ├── frontend/
-│   ├── public/                 # index.html, (models/ referenciado mas não versionado)
+│   ├── public/                 # index.html, models/ (aurora.glb, jason2.glb — versionados no Git)
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── three/         # SolarSystem.jsx, SolarSystemPhotorealistic.jsx

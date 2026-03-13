@@ -1267,6 +1267,7 @@ function createAtlasAurora7(solarGroup, loader, R) {
 
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  // Se der erro de DRACO no Vercel, testar: 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/'
 
   const aurora7Loader = new GLTFLoader();
   aurora7Loader.setDRACOLoader(dracoLoader);
@@ -1275,7 +1276,15 @@ function createAtlasAurora7(solarGroup, loader, R) {
   const AURORA_SCALE = 0.5;
 
   const onAuroraLoaded = (gltf) => {
-    if (R.aurora7) return;
+    console.log('R.aurora7 já existe?', !!R.aurora7);
+    if (R.aurora7) {
+      console.warn('⚠️ Aurora já carregada, pulando...');
+      return;
+    }
+
+    console.log('✅ AURORA CARREGOU!', gltf);
+    console.log('Modelo:', gltf.scene);
+    console.log('Meshes/children:', gltf.scene?.children?.length ?? 0, gltf.scene?.children);
 
     const model = gltf.scene;
 
@@ -1362,24 +1371,41 @@ function createAtlasAurora7(solarGroup, loader, R) {
     startIntro();
   };
 
-  // Ordem: primeiro o arquivo que EXISTE no repo (aurora.glb), depois Aurora_7.glb, depois NASA.
-  // No Vercel (Linux) o nome é case-sensitive; no Git está aurora.glb.
+  // Logs de debug: no Console (F12) procure por "Aurora" ou "AURORA" ou "DRACO"
+  const onProgress = (p) => {
+    if (p.total > 0) {
+      console.log('📥 Aurora:', Math.round((p.loaded / p.total) * 100) + '%');
+    } else {
+      console.log('📥 Aurora: carregando...', p.loaded);
+    }
+  };
+
+  console.log('🚀 Iniciando carregamento Aurora 7...');
+  console.log('URL (1ª tentativa):', AURORA_7_GLB_ALT);
+
   aurora7Loader.load(
     AURORA_7_GLB_ALT,
     onAuroraLoaded,
-    undefined,
-    () => {
+    onProgress,
+    (err) => {
+      console.error('❌ ERRO AURORA (aurora.glb):', err);
+      console.error('URL tentada:', AURORA_7_GLB_ALT);
+      console.log('🔄 Tentando fallback 2: Aurora_7.glb');
       aurora7Loader.load(
         AURORA_7_GLB_LOCAL,
         onAuroraLoaded,
-        undefined,
-        () => {
+        onProgress,
+        (err2) => {
+          console.error('❌ ERRO AURORA (Aurora_7.glb):', err2);
+          console.error('URL tentada:', AURORA_7_GLB_LOCAL);
+          console.log('🔄 Tentando fallback 3: NASA GitHub');
           aurora7Loader.load(
             ATLAS_7_AURORA_7_GLB,
             onAuroraLoaded,
-            undefined,
-            (err) => {
-              console.error('Erro ao carregar Aurora 7 (todos os caminhos):', err);
+            onProgress,
+            (err3) => {
+              console.error('❌ ERRO AURORA (todos os caminhos):', err3);
+              console.error('URLs tentadas:', [AURORA_7_GLB_ALT, AURORA_7_GLB_LOCAL, ATLAS_7_AURORA_7_GLB]);
               startIntro();
             }
           );
