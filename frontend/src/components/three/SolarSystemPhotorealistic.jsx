@@ -1272,67 +1272,49 @@ function createAtlasAurora7(solarGroup, loader, R) {
   const aurora7Loader = new GLTFLoader();
   aurora7Loader.setDRACOLoader(dracoLoader);
 
-  // Escala maior para garantir visibilidade (tamanho não importa)
-  const AURORA_SCALE = 0.5;
+  // Tamanho alvo da Aurora na cena (em unidades do mundo Three.js)
+  const AURORA_TARGET_SIZE = 0.8;
 
   const onAuroraLoaded = (gltf) => {
-    console.log('R.aurora7 já existe?', !!R.aurora7);
-    if (R.aurora7) {
-      console.warn('⚠️ Aurora já carregada, pulando...');
-      return;
-    }
-
-    console.log('✅ AURORA CARREGOU!', gltf);
-    console.log('Modelo:', gltf.scene);
-    console.log('Meshes/children:', gltf.scene?.children?.length ?? 0, gltf.scene?.children);
+    if (R.aurora7) return;
 
     const model = gltf.scene;
 
+    // Centralizar o modelo no seu próprio origin
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
     model.position.sub(center);
 
-    model.scale.setScalar(AURORA_SCALE);
+    // Escalar para AURORA_TARGET_SIZE independente do tamanho original do GLB
+    const normalizedScale = AURORA_TARGET_SIZE / maxDim;
+    model.scale.setScalar(normalizedScale);
 
     model.traverse(node => {
-      if (!node.isMesh || !node.material) return;
+      if (!node.isMesh) return;
       node.castShadow = true;
       node.receiveShadow = true;
-      node.userData = {
-        clickable: true,
-        name: 'Aurora 7',
-        moduleName: 'Nave B4 ERD-FX'
-      };
+      node.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
 
-      const mn = node.material.name || '';
-      if (mn.includes('lambert2')) {
-        node.material.color.set('#C8960C');
-        node.material.metalness = 1.0;
-        node.material.roughness = 0.03;
+      // Converter para MeshStandardMaterial se necessário (GLBs com lambert/blinn/basic)
+      const oldMat = Array.isArray(node.material) ? node.material[0] : node.material;
+      if (!oldMat) return;
+
+      const mn = (oldMat.name || '').toLowerCase();
+      let newMat;
+
+      if (mn.includes('lambert2') || mn.includes('anisotropic')) {
+        newMat = new THREE.MeshStandardMaterial({ color: 0xC8960C, metalness: 1.0, roughness: 0.03, emissive: new THREE.Color(0x443200), emissiveIntensity: 0.6 });
       } else if (mn.includes('blinn3') || mn.includes('lambert6')) {
-        node.material.color.set('#1A3A6B');
-        node.material.metalness = 0.9;
-        node.material.roughness = 0.14;
-        node.material.emissive = new THREE.Color('#0a1a35');
-        node.material.emissiveIntensity = 0.4;
+        newMat = new THREE.MeshStandardMaterial({ color: 0x1A3A6B, metalness: 0.9, roughness: 0.14, emissive: new THREE.Color(0x0a1a35), emissiveIntensity: 0.5 });
       } else if (mn.includes('lambert3')) {
-        node.material.emissive = new THREE.Color('#FF2200');
-        node.material.emissiveIntensity = 0.6;
-      } else if (mn.includes('anisotropic')) {
-        node.material.color.set('#D4A017');
-        node.material.metalness = 1.0;
-        node.material.roughness = 0.025;
+        newMat = new THREE.MeshStandardMaterial({ color: 0xFF2200, metalness: 0.2, roughness: 0.5, emissive: new THREE.Color(0xFF2200), emissiveIntensity: 0.8 });
       } else {
-        node.material.color.set('#D8DDE0');
-        node.material.metalness = 0.72;
-        node.material.roughness = 0.22;
-        node.material.emissive = new THREE.Color('#111111');
-        node.material.emissiveIntensity = 0.12;
+        // Material genérico: cinza metálico com emissivo suficiente para ser visto no espaço escuro
+        newMat = new THREE.MeshStandardMaterial({ color: 0xD8DDE0, metalness: 0.72, roughness: 0.22, emissive: new THREE.Color(0x556677), emissiveIntensity: 0.5 });
       }
-      node.material.needsUpdate = true;
+      node.material = newMat;
     });
 
     const a7Group = new THREE.Group();
@@ -1349,11 +1331,10 @@ function createAtlasAurora7(solarGroup, loader, R) {
     );
 
     const a7Label = createLabel('Aurora 7');
-    const labelOffset = Math.max(maxDim * AURORA_SCALE * 1.4, 1.2);
-    a7Label.position.y = labelOffset;
+    a7Label.position.y = AURORA_TARGET_SIZE * 1.8;
     a7Group.add(a7Label);
 
-    const a7Light = new THREE.PointLight(0xffffff, 1.5, 6);
+    const a7Light = new THREE.PointLight(0xffffff, 4.0, 10);
     a7Group.add(a7Light);
 
     earthMesh.add(a7Group);
