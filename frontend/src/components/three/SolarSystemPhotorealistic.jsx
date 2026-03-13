@@ -1445,6 +1445,16 @@ export default function SolarSystemPhotorealistic() {
       earthMesh.add(a7Group);
 
       R.aurora7 = a7Group;
+
+      // Marcador de segurança (magenta) para provar posição na órbita da Terra
+      const a7Fallback = new THREE.Mesh(
+        new THREE.SphereGeometry(2.2, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0xff00ff, toneMapped: false, depthTest: false })
+      );
+      a7Fallback.renderOrder = 998;
+      a7Fallback.visible = true;
+      scene.add(a7Fallback);
+      R.auroraFallback = a7Fallback;
       // NÃO adiciona ao R.satellites — fica fixo enquanto testamos visibilidade
 
       // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
@@ -1759,6 +1769,11 @@ export default function SolarSystemPhotorealistic() {
         s.mesh.rotation.y += 0.02 * timeSpeed * dt;
       });
       // Aurora é filha da Terra; não precisa reposicionamento por frame
+      if (R.auroraFallback && R.planets['Earth']) {
+        const earthWorld = new THREE.Vector3();
+        R.planets['Earth'].getWorldPosition(earthWorld);
+        R.auroraFallback.position.set(earthWorld.x, earthWorld.y - 10, earthWorld.z + 10);
+      }
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
