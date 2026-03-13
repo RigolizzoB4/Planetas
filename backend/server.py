@@ -475,7 +475,7 @@ async def seed_default_objects():
         }
     ]
     
-    # Add 8 satellites (real moons, ordered: Phobos→Moon)
+    # Add 9 satellites (real moons + Aurora 7)
     satellite_data = [
         ("Phobos",    "Auth API"),
         ("Deimos",    "Payment Gateway"),
@@ -484,7 +484,8 @@ async def seed_default_objects():
         ("Callisto",  "Cache Layer"),
         ("Titan",     "Message Queue"),
         ("Enceladus", "Log Aggregator"),
-        ("Moon",      "Config Server")
+        ("Moon",      "Config Server"),
+        ("Aurora 7",  "Nave B4 ERD-FX"),
     ]
     
     for i, (sat_name, module_name) in enumerate(satellite_data):

@@ -225,7 +225,9 @@ const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Pro
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
 // Base URL para assets: no Netlify e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
 const getBaseUrl = () => (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.PUBLIC_URL || '');
-const AURORA_7_GLB_LOCAL = `${getBaseUrl()}/models/aurora.glb`;
+// Aurora 7 local — tenta Aurora_7.glb e aurora.glb (qual existir em public/models/)
+const AURORA_7_GLB_LOCAL = `${getBaseUrl()}/models/Aurora_7.glb`;
+const AURORA_7_GLB_ALT = `${getBaseUrl()}/models/aurora.glb`;
 
 // Skybox 4 camadas: 8K star map + nebulae sutis + star particles + Via Láctea leve (sem repetição, estático)
 const SKYBOX_RADIUS = 5000;
@@ -304,7 +306,6 @@ const SATELLITES = [
   { name: 'Titan',     module: 'Message Queue',        color: 0xE0A848, size: 0.22, rough: 0.45, metal: 0.00, irregular: false },
   { name: 'Enceladus', module: 'Log Aggregator',       color: 0xDEDEDE, size: 0.10, rough: 0.15, metal: 0.10, irregular: false },
   { name: 'Moon',      module: 'Config Server',        color: 0xA0A0A0, size: 0.27, rough: 0.90, metal: 0.05, irregular: false },
-  { name: 'Aurora 7',  module: 'Nave B4 ERD-FX',       color: 0xff6b35, size: 0.20, rough: 0.5, metal: 0.3, irregular: false },
   { name: 'Jason-2',   module: 'Altímetro oceânico',   color: 0x1e88e5, size: 0.18, rough: 0.6, metal: 0.4, irregular: false, style: 'jason2' }
 ];
 
@@ -1204,53 +1205,188 @@ function createParkerSolarProbe(solarGroup, R) {
 }
 
 // Atlas 7 (Aurora 7) — nave Mercury/Atlas 7 (Aurora 7)
-// Aurora 7 em órbita baixa da Terra (LEO)
-const AURORA_7_ORBIT_RADIUS = PLANETS.Earth.size * 3;
-const AURORA_7_SPEED = 0.02;
+// Aurora 7 como “lua” da Terra (órbita baixa, cinematográfica)
 function createAtlasAurora7(solarGroup, loader, R) {
-  const group = new THREE.Group();
-  group.name = 'Aurora7';
-  group.userData = { clickable: true, name: 'Aurora 7' };
-  R.aurora7Angle = Math.random() * Math.PI * 2;
+  const earthMesh = R.planets['Earth'];
+  if (!earthMesh) return;
 
-  const gltfLoader = new GLTFLoader();
+  // Intro cinemática: voar até a Aurora 7 uma única vez
+  const startIntro = () => {
+    if (R.introStarted) return;
+    R.introStarted = true;
+    const camera = R.camera;
+    const controls = R.controls;
+    if (!camera || !controls) return;
+
+    controls.enabled = false;
+    R.isAnimatingFocus = true;
+
+    setTimeout(() => {
+      const target = new THREE.Vector3();
+      if (R.aurora7) {
+        R.aurora7.getWorldPosition(target);
+      } else {
+        earthMesh.getWorldPosition(target);
+        target.add(new THREE.Vector3(0, 2, 0));
+      }
+
+      const camPos = target.clone().add(new THREE.Vector3(0, 8, 25));
+
+      const onComplete = () => {
+        controls.enabled = true;
+        R.isAnimatingFocus = false;
+        R.initialZoomDone = true;
+        controls.target.set(0, 0, 0);
+        controls.update();
+        if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
+          R.auroraPanelShown = true;
+          R.latestSetAuroraPanelOpen(true);
+        }
+      };
+
+      const camTween = gsap.to(camera.position, {
+        x: camPos.x,
+        y: camPos.y,
+        z: camPos.z,
+        duration: 3.5,
+        ease: 'power2.inOut',
+        onComplete
+      });
+
+      const targetTween = gsap.to(controls.target, {
+        x: target.x,
+        y: target.y,
+        z: target.z,
+        duration: 3.5,
+        ease: 'power2.inOut'
+      });
+
+      R.focusTweens = [camTween, targetTween];
+    }, 2000);
+  };
+
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
-  gltfLoader.setDRACOLoader(dracoLoader);
-  const onAurora7Loaded = (gltf) => {
+
+  const aurora7Loader = new GLTFLoader();
+  aurora7Loader.setDRACOLoader(dracoLoader);
+
+  // Escala maior para garantir visibilidade (tamanho não importa)
+  const AURORA_SCALE = 0.5;
+
+  const onAuroraLoaded = (gltf) => {
+    if (R.aurora7) return;
+
     const model = gltf.scene;
-    model.traverse((c) => {
-      if (c.isMesh) {
-        c.castShadow = true;
-        c.receiveShadow = true;
-        c.userData = { clickable: true, name: 'Aurora 7' };
+
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+
+    model.position.sub(center);
+
+    model.scale.setScalar(AURORA_SCALE);
+
+    model.traverse(node => {
+      if (!node.isMesh || !node.material) return;
+      node.castShadow = true;
+      node.receiveShadow = true;
+      node.userData = {
+        clickable: true,
+        name: 'Aurora 7',
+        moduleName: 'Nave B4 ERD-FX'
+      };
+
+      const mn = node.material.name || '';
+      if (mn.includes('lambert2')) {
+        node.material.color.set('#C8960C');
+        node.material.metalness = 1.0;
+        node.material.roughness = 0.03;
+      } else if (mn.includes('blinn3') || mn.includes('lambert6')) {
+        node.material.color.set('#1A3A6B');
+        node.material.metalness = 0.9;
+        node.material.roughness = 0.14;
+        node.material.emissive = new THREE.Color('#0a1a35');
+        node.material.emissiveIntensity = 0.4;
+      } else if (mn.includes('lambert3')) {
+        node.material.emissive = new THREE.Color('#FF2200');
+        node.material.emissiveIntensity = 0.6;
+      } else if (mn.includes('anisotropic')) {
+        node.material.color.set('#D4A017');
+        node.material.metalness = 1.0;
+        node.material.roughness = 0.025;
+      } else {
+        node.material.color.set('#D8DDE0');
+        node.material.metalness = 0.72;
+        node.material.roughness = 0.22;
+        node.material.emissive = new THREE.Color('#111111');
+        node.material.emissiveIntensity = 0.12;
       }
+      node.material.needsUpdate = true;
     });
-    // Para debug: escala fixa MUITO grande para garantir visibilidade
-    const scale = 5;
-    model.scale.setScalar(scale);
-    group.add(model);
 
-    // Label "Aurora 7" acima da nave
-    const label = createLabel('Aurora 7');
-    const labelOffset = maxDim * scale * 1.4;
-    label.position.set(0, labelOffset, 0);
-    group.add(label);
+    const a7Group = new THREE.Group();
+    a7Group.name = 'Aurora7';
+    a7Group.userData = { clickable: true, name: 'Aurora 7' };
+    a7Group.add(model);
+
+    const a7Angle = 2.5;
+    const a7Orbit = 3.8;
+    a7Group.position.set(
+      Math.cos(a7Angle) * a7Orbit,
+      0,
+      Math.sin(a7Angle) * a7Orbit
+    );
+
+    const a7Label = createLabel('Aurora 7');
+    const labelOffset = Math.max(maxDim * AURORA_SCALE * 1.4, 1.2);
+    a7Label.position.y = labelOffset;
+    a7Group.add(a7Label);
+
+    const a7Light = new THREE.PointLight(0xffffff, 1.5, 6);
+    a7Group.add(a7Light);
+
+    earthMesh.add(a7Group);
+
+    R.aurora7 = a7Group;
+    if (!R.moons) R.moons = [];
+    R.moons.push({
+      mesh: a7Group,
+      angle: a7Angle,
+      orbitRadius: a7Orbit,
+      speed: 0.25
+    });
+
+    console.log('Aurora 7 carregada. Escala:', AURORA_SCALE);
+    startIntro();
   };
-  gltfLoader.load(
-    AURORA_7_GLB_LOCAL,
-    onAurora7Loaded,
-    undefined,
-    () => gltfLoader.load(
-      ATLAS_7_AURORA_7_GLB,
-      onAurora7Loaded,
-      undefined,
-      () => { /* se tudo falhar, nave some silenciosamente */ }
-    )
-  );
 
-  solarGroup.add(group);
-  R.aurora7Group = group;
+  // Ordem: primeiro o arquivo que EXISTE no repo (aurora.glb), depois Aurora_7.glb, depois NASA.
+  // No Vercel (Linux) o nome é case-sensitive; no Git está aurora.glb.
+  aurora7Loader.load(
+    AURORA_7_GLB_ALT,
+    onAuroraLoaded,
+    undefined,
+    () => {
+      aurora7Loader.load(
+        AURORA_7_GLB_LOCAL,
+        onAuroraLoaded,
+        undefined,
+        () => {
+          aurora7Loader.load(
+            ATLAS_7_AURORA_7_GLB,
+            onAuroraLoaded,
+            undefined,
+            (err) => {
+              console.error('Erro ao carregar Aurora 7 (todos os caminhos):', err);
+              startIntro();
+            }
+          );
+        }
+      );
+    }
+  );
 }
 
 // ==================== COMPONENT ====================
@@ -1258,10 +1394,11 @@ export default function SolarSystemPhotorealistic() {
   const containerRef = useRef(null);
   const refs = useRef({
     scene: null, renderer: null, camera: null, controls: null, composer: null,
-    clock: new THREE.Clock(), planets: {}, satellites: [], sunLayers: {},
+    clock: new THREE.Clock(), planets: {}, satellites: [], moons: [], sunLayers: {},
     angles: {}, frameId: null, sunMat: null, coronaMat: null, elapsed: 0,
     auroras: [], focusTweens: null, isAnimatingFocus: false, solarGroup: null, outlinePass: null,
-    userInteracting: false, initialZoomDone: false, focusTarget: null, hoverMesh: null
+    userInteracting: false, initialZoomDone: false, focusTarget: null, hoverMesh: null,
+    introStarted: false, auroraPanelShown: false, aurora7: null
   });
 
   const { objects, setSelectedObject, setAuroraPanelOpen, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
@@ -1274,10 +1411,10 @@ export default function SolarSystemPhotorealistic() {
     if (!containerRef.current) return;
     const R = refs.current;
     // Reset mutable refs for re-init
-    R.planets = {}; R.satellites = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
+    R.planets = {}; R.satellites = []; R.moons = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
-    R.aurora7Group = null; R.aurora7Angle = 0;
+    R.aurora7 = null; R.introStarted = false; R.auroraPanelShown = false;
     R.comets = null;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
@@ -1454,55 +1591,6 @@ export default function SolarSystemPhotorealistic() {
     createAsteroids(solarGroup, R);
     createParkerSolarProbe(solarGroup, R);
     createAtlasAurora7(solarGroup, loader, R);
-
-    // Intro cinemática: 2s → tween até Aurora 7 (3.5s) → target (0,0,0) → abre painel Aurora 1x
-    let introFallbackId;
-    const runIntro = () => {
-      controls.enabled = false;
-      R.isAnimatingFocus = true;
-      const auroraTarget = new THREE.Vector3();
-      if (R.sunLayers.fxSprite) {
-        R.sunLayers.fxSprite.getWorldPosition(auroraTarget);
-      }
-      const camEnd = auroraTarget.clone().add(new THREE.Vector3(0, 8, 25));
-      const onIntroDone = () => {
-        if (introFallbackId) clearTimeout(introFallbackId);
-        introFallbackId = null;
-        controls.target.set(0, 0, 0);
-        controls.enabled = true;
-        R.isAnimatingFocus = false;
-        R.initialZoomDone = true;
-        R.focusTweens = null;
-        if (R.latestSetAuroraPanelOpen) R.latestSetAuroraPanelOpen(true);
-      };
-      const camTween = gsap.to(camera.position, {
-        x: camEnd.x,
-        y: camEnd.y,
-        z: camEnd.z,
-        duration: 3.5,
-        ease: 'power2.inOut',
-        delay: 2,
-        onComplete: onIntroDone,
-        onInterrupt: onIntroDone
-      });
-      const targetTween = gsap.to(controls.target, {
-        x: auroraTarget.x,
-        y: auroraTarget.y,
-        z: auroraTarget.z,
-        duration: 3.5,
-        ease: 'power2.inOut',
-        delay: 2
-      });
-      R.focusTweens = [camTween, targetTween];
-      // Fallback: reativar mouse em 8s se a intro travar (ex.: Netlify/GSAP)
-      introFallbackId = setTimeout(() => {
-        if (!R.initialZoomDone) {
-          onIntroDone();
-          if (R.focusTweens?.length) R.focusTweens.forEach(t => t.kill());
-        }
-      }, 8000);
-    };
-    runIntro();
 
     // Raycaster — hover: só outline + pointer (não move câmera); clique: popup + approachObject
     const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
@@ -1691,7 +1779,6 @@ export default function SolarSystemPhotorealistic() {
     animate();
 
     return () => {
-      if (introFallbackId) clearTimeout(introFallbackId);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       controls.removeEventListener('start', onControlStart);
@@ -1749,6 +1836,16 @@ export default function SolarSystemPhotorealistic() {
           p.rotation.y += cfg.rot * timeSpeed * dt;
         }
       });
+      if (R.moons && R.moons.length) {
+        R.moons.forEach(m => {
+          m.angle += m.speed * timeSpeed * dt;
+          m.mesh.position.set(
+            Math.cos(m.angle) * m.orbitRadius,
+            0,
+            Math.sin(m.angle) * m.orbitRadius
+          );
+        });
+      }
       if (R.planets['EarthClouds']) R.planets['EarthClouds'].rotation.y += 0.001 * timeSpeed * dt;
       R.satellites.forEach(s => {
         s.angle += 0.03 * timeSpeed * dt;
@@ -1761,10 +1858,6 @@ export default function SolarSystemPhotorealistic() {
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
-      }
-      if (R.aurora7Group) {
-        // Para debug: posição fixa fácil de ver (perto da órbita da Terra, no eixo Z+)
-        R.aurora7Group.position.set(0, 0, PLANETS.Earth.orbit + 10);
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
