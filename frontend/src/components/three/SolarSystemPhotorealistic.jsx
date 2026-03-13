@@ -1433,12 +1433,13 @@ export default function SolarSystemPhotorealistic() {
 
       a7Group.add(new THREE.PointLight(0xFF6600, 12.0, 40));
 
-      // Adicionar ao solarGroup com posição absoluta (não depende de earthMesh)
+      // Adicionar DIRETAMENTE à scene (não ao solarGroup que rotaciona!)
+      // Posição world-space fixa — câmera sempre encontra
       a7Group.position.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
-      solarGroup.add(a7Group);
+      scene.add(a7Group);
 
       R.aurora7 = a7Group;
-      R.satellites.push({ mesh: a7Group, angle: 0, orbitRadius: PLANETS.Earth.orbit });
+      // NÃO adiciona ao R.satellites — fica fixo enquanto testamos visibilidade
 
       // Câmera: posicionar DIRETAMENTE sem animação nem setTimeout
       // Isso garante que a câmera começa na Aurora independente de qualquer timing
