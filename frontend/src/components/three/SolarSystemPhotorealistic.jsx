@@ -1405,104 +1405,107 @@ export default function SolarSystemPhotorealistic() {
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
     createParkerSolarProbe(solarGroup, R);
-    // ===== AURORA 7 — carregamento inline, simples e direto =====
+    // ===== AURORA 7 — placeholder garantido + GLB por cima =====
     {
+      const a7Angle = 2.5;
+      const a7Orbit = 3.8;
+      const earthMesh = R.planets['Earth'];
+
+      // PASSO 1: Esfera laranja GARANTIDA — aparece sempre, sem depender de GLB
+      const a7Group = new THREE.Group();
+      a7Group.name = 'Aurora7';
+      a7Group.userData = { clickable: true, name: 'Aurora 7' };
+
+      const sphereGeo = new THREE.SphereGeometry(1.0, 32, 32);
+      const sphereMat = new THREE.MeshStandardMaterial({
+        color: 0xFF6600,
+        emissive: new THREE.Color(0xFF3300),
+        emissiveIntensity: 1.5,
+        metalness: 0.3,
+        roughness: 0.4,
+      });
+      const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+      sphere.name = 'Aurora7Sphere';
+      sphere.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
+      a7Group.add(sphere);
+
+      const a7Label = createLabel('Aurora 7');
+      a7Label.position.y = 2.8;
+      a7Group.add(a7Label);
+
+      const a7Light = new THREE.PointLight(0xFF6600, 8.0, 25);
+      a7Group.add(a7Light);
+
+      // Posição: abaixo da Terra (y = -3) na órbita
+      a7Group.position.set(Math.cos(a7Angle) * a7Orbit, -3, Math.sin(a7Angle) * a7Orbit);
+      (earthMesh || solarGroup).add(a7Group);
+
+      R.aurora7 = a7Group;
+      R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: -3, speed: 0.25 });
+
+      // Intro câmera: voa para Aurora imediatamente
+      R.introStarted = true;
+      controls.enabled = false;
+      R.isAnimatingFocus = true;
+      setTimeout(() => {
+        const target = new THREE.Vector3();
+        a7Group.getWorldPosition(target);
+        const camEnd = target.clone().add(new THREE.Vector3(0, 4, 10));
+        gsap.to(camera.position, {
+          x: camEnd.x, y: camEnd.y, z: camEnd.z,
+          duration: 3.0, ease: 'power2.inOut',
+          onComplete: () => {
+            controls.enabled = true;
+            R.isAnimatingFocus = false;
+            R.initialZoomDone = true;
+            controls.target.copy(target);
+            controls.update();
+            if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
+              R.auroraPanelShown = true;
+              R.latestSetAuroraPanelOpen(true);
+            }
+          }
+        });
+        gsap.to(controls.target, { x: target.x, y: target.y, z: target.z, duration: 3.0, ease: 'power2.inOut' });
+      }, 800);
+
+      // PASSO 2: Tenta carregar GLB por cima — se carregar, substitui a esfera
       const a7DracoLoader = new DRACOLoader();
       a7DracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
       const a7Loader = new GLTFLoader();
       a7Loader.setDRACOLoader(a7DracoLoader);
-
       a7Loader.load(
         `${process.env.PUBLIC_URL || ''}/models/aurora.glb`,
         (gltf) => {
-          if (R.aurora7) return;
-
           const model = gltf.scene;
-          // Escalar para o tamanho da Terra (diameter ≈ 2 unidades = Earth.size * 2)
-          const box3 = new THREE.Box3().setFromObject(model);
-          const sz = box3.getSize(new THREE.Vector3());
-          const maxD = Math.max(sz.x, sz.y, sz.z) || 1;
-          const EARTH_SIZE = 1.0; // igual ao PLANETS.Earth.size
-          const sc = (EARTH_SIZE * 2) / maxD; // diâmetro = 2 unidades (igual à Terra)
-          model.position.sub(box3.getCenter(new THREE.Vector3()));
-          model.scale.setScalar(sc);
+          // Contar meshes reais no modelo
+          let meshCount = 0;
+          model.traverse(n => { if (n.isMesh) meshCount++; });
+          if (meshCount === 0) return; // GLB vazio — mantém esfera
 
-          // COR LARANJA BRILHANTE — impossível de não ver
+          // Normalizar escala para 2 unidades
+          const b = new THREE.Box3().setFromObject(model);
+          const md = Math.max(...b.getSize(new THREE.Vector3()).toArray()) || 1;
+          model.position.sub(b.getCenter(new THREE.Vector3()));
+          model.scale.setScalar(2.0 / md);
+
           model.traverse(n => {
             if (!n.isMesh) return;
-            n.castShadow = true;
             n.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
             n.material = new THREE.MeshStandardMaterial({
-              color: new THREE.Color(0xFF6600),      // laranja forte
-              metalness: 0.5,
-              roughness: 0.3,
-              emissive: new THREE.Color(0xFF3300),   // brilho laranja próprio
-              emissiveIntensity: 1.2,                // muito brilhante
+              color: 0xFF6600, emissive: new THREE.Color(0xFF3300), emissiveIntensity: 1.0,
+              metalness: 0.5, roughness: 0.3,
             });
           });
 
-          // Grupo: modelo + label + luz laranja própria
-          const a7Group = new THREE.Group();
-          a7Group.name = 'Aurora7';
-          a7Group.userData = { clickable: true, name: 'Aurora 7' };
+          // Remove esfera placeholder, coloca modelo real
+          a7Group.remove(sphere);
+          sphere.geometry.dispose();
+          sphereMat.dispose();
           a7Group.add(model);
-
-          const a7Label = createLabel('Aurora 7');
-          a7Label.position.y = 2.8;
-          a7Group.add(a7Label);
-
-          // Luz laranja — ilumina a própria nave e a região ao redor
-          const a7Light = new THREE.PointLight(0xFF6600, 8.0, 25);
-          a7Group.add(a7Light);
-
-          // Posição: abaixo da Terra (y = -3) na órbita
-          const a7Angle = 2.5;
-          const a7Orbit = 3.8;
-          a7Group.position.set(Math.cos(a7Angle) * a7Orbit, -3, Math.sin(a7Angle) * a7Orbit);
-
-          // Adicionar como filha da Terra (ou solarGroup como fallback)
-          const earthMesh = R.planets['Earth'];
-          (earthMesh || solarGroup).add(a7Group);
-
-          R.aurora7 = a7Group;
-          R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: -3, speed: 0.25 });
-
-          // Voar câmera para Aurora 1x
-          if (!R.introStarted) {
-            R.introStarted = true;
-            controls.enabled = false;
-            R.isAnimatingFocus = true;
-            setTimeout(() => {
-              const target = new THREE.Vector3();
-              a7Group.getWorldPosition(target);
-              const dir = camera.position.clone().sub(target);
-              if (dir.length() < 0.1) dir.set(0, 1, 1);
-              const camEnd = target.clone().add(dir.normalize().multiplyScalar(8));
-              camEnd.y = Math.max(camEnd.y, target.y + 2);
-              gsap.to(camera.position, {
-                x: camEnd.x, y: camEnd.y, z: camEnd.z,
-                duration: 3.0, ease: 'power2.inOut',
-                onComplete: () => {
-                  controls.enabled = true;
-                  R.isAnimatingFocus = false;
-                  R.initialZoomDone = true;
-                  controls.target.copy(target);
-                  controls.update();
-                  if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
-                    R.auroraPanelShown = true;
-                    R.latestSetAuroraPanelOpen(true);
-                  }
-                }
-              });
-              gsap.to(controls.target, {
-                x: target.x, y: target.y, z: target.z,
-                duration: 3.0, ease: 'power2.inOut'
-              });
-            }, 1500);
-          }
         },
         undefined,
-        (err) => { console.error('Aurora 7 load error:', err); }
+        () => {} // erro silencioso — esfera já está lá
       );
     }
 
