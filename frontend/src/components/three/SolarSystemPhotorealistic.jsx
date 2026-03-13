@@ -1421,13 +1421,19 @@ export default function SolarSystemPhotorealistic() {
       const sphereMat = new THREE.MeshBasicMaterial({
         color: 0xFF6600,
         toneMapped: false,
+        depthTest: false,
+        depthWrite: false,
+        transparent: true,
+        opacity: 0.95,
       });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+      sphere.renderOrder = 999;
       sphere.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
       a7Group.add(sphere);
 
       const a7Label = createLabel('Aurora 7');
       a7Label.position.y = 4.5;
+      a7Label.renderOrder = 1000;
       a7Group.add(a7Label);
 
       a7Group.add(new THREE.PointLight(0xFF6600, 12.0, 40));
@@ -1445,7 +1451,8 @@ export default function SolarSystemPhotorealistic() {
       camera.position.set(A7_WORLD_X + 5, 10, A7_WORLD_Z + 20);
       controls.target.set(A7_WORLD_X, A7_WORLD_Y, A7_WORLD_Z);
       controls.update();
-      R.initialZoomDone = true;
+      // Evita que o efeito de cameraPreset sobrescreva imediatamente o foco da Aurora no mount
+      R.initialZoomDone = false;
       R.introStarted = true;
       // Abre painel Aurora após 1s
       setTimeout(() => {
@@ -1478,8 +1485,7 @@ export default function SolarSystemPhotorealistic() {
               metalness: 0.5, roughness: 0.3,
             });
           });
-          a7Group.remove(sphere);
-          sphere.geometry.dispose(); sphereMat.dispose();
+          // Mantém a esfera visível sempre; GLB entra como conteúdo adicional
           a7Group.add(gltf.scene);
         },
         undefined,
@@ -1748,6 +1754,12 @@ export default function SolarSystemPhotorealistic() {
         s.mesh.position.z = Math.sin(s.angle) * s.orbitRadius;
         s.mesh.rotation.y += 0.02 * timeSpeed * dt;
       });
+      // Aurora sempre abaixo da Terra (world-space), independente de rotação do solarGroup
+      if (R.aurora7 && R.planets['Earth']) {
+        const earthWorld = new THREE.Vector3();
+        R.planets['Earth'].getWorldPosition(earthWorld);
+        R.aurora7.position.set(earthWorld.x, earthWorld.y - 8, earthWorld.z);
+      }
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
