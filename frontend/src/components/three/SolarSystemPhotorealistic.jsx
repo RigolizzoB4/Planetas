@@ -1226,8 +1226,8 @@ function createAtlasAurora7(solarGroup, loader, R) {
         c.userData = { clickable: true, name: 'Aurora 7' };
       }
     });
-    // Para debug: escala fixa grande para garantir visibilidade
-    const scale = 1;
+    // Para debug: escala fixa MUITO grande para garantir visibilidade
+    const scale = 5;
     model.scale.setScalar(scale);
     group.add(model);
 
