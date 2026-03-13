@@ -10,6 +10,7 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass';
 import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
 // ==================== GLSL SHADERS ====================
@@ -1213,6 +1214,9 @@ function createAtlasAurora7(solarGroup, loader, R) {
   R.aurora7Angle = Math.random() * Math.PI * 2;
 
   const gltfLoader = new GLTFLoader();
+  const dracoLoader = new DRACOLoader();
+  dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+  gltfLoader.setDRACOLoader(dracoLoader);
   const onAurora7Loaded = (gltf) => {
     const model = gltf.scene;
     model.traverse((c) => {
