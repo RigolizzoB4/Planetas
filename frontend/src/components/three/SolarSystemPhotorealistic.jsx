@@ -1226,12 +1226,8 @@ function createAtlasAurora7(solarGroup, loader, R) {
         c.userData = { clickable: true, name: 'Aurora 7' };
       }
     });
-    const box = new THREE.Box3().setFromObject(model);
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    // Escala aproximada a 1.5x o tamanho médio de um asteroide
-    const desiredSize = 0.09;
-    const scale = desiredSize / maxDim;
+    // Para debug: escala fixa grande para garantir visibilidade
+    const scale = 1;
     model.scale.setScalar(scale);
     group.add(model);
 
@@ -1766,19 +1762,9 @@ export default function SolarSystemPhotorealistic() {
         R.parkerGroup.position.z = Math.sin(R.parkerAngle) * PARKER_ORBIT_RADIUS;
         R.parkerGroup.rotation.y += 0.01 * timeSpeed * dt;
       }
-      if (R.aurora7Group && R.planets.Earth) {
-        // Aurora 7: órbita baixa ao redor da Terra (inclinação leve)
-        R.aurora7Angle += AURORA_7_SPEED * timeSpeed * dt;
-        const a = R.aurora7Angle;
-        const r = AURORA_7_ORBIT_RADIUS;
-        const earthPos = R.planets.Earth.position;
-        const offset = new THREE.Vector3(
-          Math.cos(a) * r,
-          Math.sin(a * 0.6) * r * 0.4,
-          Math.sin(a) * r
-        );
-        R.aurora7Group.position.copy(earthPos).add(offset);
-        R.aurora7Group.lookAt(earthPos);
+      if (R.aurora7Group) {
+        // Para debug: posição fixa fácil de ver (perto da órbita da Terra, no eixo Z+)
+        R.aurora7Group.position.set(0, 0, PLANETS.Earth.orbit + 10);
       }
       if (R.planets['AsteroidBelt']) R.planets['AsteroidBelt'].rotation.y += 0.0002 * timeSpeed * dt;
     };
@@ -1819,6 +1805,7 @@ export default function SolarSystemPhotorealistic() {
       'Overview': { pos: [0, 50, 120], target: [0, 0, 0] },
       'Sun Focus': { pos: [0, 15, 35], target: [0, 0, 0] },
       'Earth Focus': { pos: [25, 10, 25], target: [18, 0, 0] },
+      'Aurora Focus': { pos: [0, 10, PLANETS.Earth.orbit + 20], target: [0, 0, PLANETS.Earth.orbit + 10] },
       'Satellite Ring': { pos: [18, 8, 18], target: [12, 0, 0] },
       // Vista de cima: mais afastada para caber o sistema inteiro (órbitas 2x)
       'Top View': { pos: [0, 260, 1], target: [0, 0, 0] },
