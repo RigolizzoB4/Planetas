@@ -1416,12 +1416,11 @@ export default function SolarSystemPhotorealistic() {
       a7Group.name = 'Aurora7';
       a7Group.userData = { clickable: true, name: 'Aurora 7' };
 
-      // Esfera laranja GRANDE — raio 3 unidades, impossível não ver
-      const sphereGeo = new THREE.SphereGeometry(3.0, 32, 32);
-      const sphereMat = new THREE.MeshStandardMaterial({
+      // Esfera laranja DO TAMANHO DO SOL — MeshBasicMaterial ignora lighting/tonemapping
+      const sphereGeo = new THREE.SphereGeometry(5.5, 32, 32);
+      const sphereMat = new THREE.MeshBasicMaterial({
         color: 0xFF6600,
-        emissive: new THREE.Color(0xFF3300),
-        emissiveIntensity: 2.0,
+        toneMapped: false,
       });
       const sphere = new THREE.Mesh(sphereGeo, sphereMat);
       sphere.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
