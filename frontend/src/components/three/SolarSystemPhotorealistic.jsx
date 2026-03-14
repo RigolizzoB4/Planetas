@@ -292,6 +292,40 @@ const PLANETS = {
   Pluto:   { size: 0.18, orbit: 200, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.95, metal: 0.02, nStr: 1.0, envMapIntensity: 0.08, emissiveIntensity: 0.12 }
 };
 
+const NATURAL_MOONS = {
+  Earth: [
+    { name: 'Lua', size: 0.27, orbit: 2.8, speed: 0.5, color: 0xA0A0A0, rough: 0.9 }
+  ],
+  Mars: [
+    { name: 'Phobos', size: 0.06, orbit: 1.4, speed: 0.8, color: 0x8B7355, rough: 0.95 },
+    { name: 'Deimos', size: 0.04, orbit: 2.0, speed: 0.6, color: 0x7A6B5A, rough: 0.95 }
+  ],
+  Jupiter: [
+    { name: 'Io', size: 0.18, orbit: 5.5, speed: 0.45, color: 0xCCB050, rough: 0.8 },
+    { name: 'Europa', size: 0.15, orbit: 6.8, speed: 0.35, color: 0xC4BCA0, rough: 0.25 },
+    { name: 'Ganymede', size: 0.22, orbit: 8.2, speed: 0.25, color: 0x9A8B7A, rough: 0.7 },
+    { name: 'Callisto', size: 0.20, orbit: 9.8, speed: 0.18, color: 0x6B5E4F, rough: 0.85 }
+  ],
+  Saturn: [
+    { name: 'Titan', size: 0.22, orbit: 6.5, speed: 0.3, color: 0xE0A848, rough: 0.45 },
+    { name: 'Enceladus', size: 0.08, orbit: 4.5, speed: 0.55, color: 0xDEDEDE, rough: 0.15 },
+    { name: 'Mimas', size: 0.05, orbit: 3.8, speed: 0.65, color: 0xBBBBBB, rough: 0.85 },
+    { name: 'Rhea', size: 0.10, orbit: 5.5, speed: 0.4, color: 0xCCCCCC, rough: 0.8 }
+  ],
+  Uranus: [
+    { name: 'Titania', size: 0.12, orbit: 4.0, speed: 0.35, color: 0xA8B8C8, rough: 0.7 },
+    { name: 'Oberon', size: 0.11, orbit: 5.0, speed: 0.28, color: 0x8899AA, rough: 0.75 },
+    { name: 'Miranda', size: 0.06, orbit: 3.0, speed: 0.5, color: 0xBBCCDD, rough: 0.6 }
+  ],
+  Neptune: [
+    { name: 'Triton', size: 0.14, orbit: 4.2, speed: 0.32, color: 0x8BA8C4, rough: 0.5 },
+    { name: 'Proteus', size: 0.06, orbit: 3.0, speed: 0.55, color: 0x7799AA, rough: 0.8 }
+  ],
+  Pluto: [
+    { name: 'Charon', size: 0.09, orbit: 1.2, speed: 0.4, color: 0x9E8E7E, rough: 0.85 }
+  ]
+};
+
 const SYSTEM_LIMIT_RADIUS = PLANETS.Jupiter.orbit + 20;
 const ASTEROID_BELT_INNER = 60;  // 30 * 2
 const ASTEROID_BELT_OUTER = 76;  // 38 * 2
@@ -1056,6 +1090,56 @@ function createPlanet(scene, loader, name, cfg, R) {
   scene.add(group);
 }
 
+function createNaturalMoons(R) {
+  if (!R.moons) R.moons = [];
+
+  Object.entries(NATURAL_MOONS).forEach(([planetName, moons]) => {
+    const parentPlanet = R.planets[planetName];
+    if (!parentPlanet) return;
+
+    moons.forEach((moonCfg, i) => {
+      const mat = new THREE.MeshStandardMaterial({
+        color: moonCfg.color,
+        roughness: moonCfg.rough,
+        metalness: 0.05,
+        emissive: new THREE.Color(moonCfg.color),
+        emissiveIntensity: 0.06
+      });
+
+      const moonMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(moonCfg.size, 32, 32),
+        mat
+      );
+      moonMesh.name = moonCfg.name;
+      moonMesh.userData = { clickable: true, name: moonCfg.name };
+      moonMesh.castShadow = true;
+      moonMesh.receiveShadow = true;
+
+      const label = createLabel(moonCfg.name);
+      label.position.y = moonCfg.size + 0.4;
+      moonMesh.add(label);
+
+      const startAngle = (i / moons.length) * Math.PI * 2 + Math.random() * 0.5;
+      moonMesh.position.set(
+        Math.cos(startAngle) * moonCfg.orbit,
+        0,
+        Math.sin(startAngle) * moonCfg.orbit
+      );
+
+      parentPlanet.add(moonMesh);
+
+      R.moons.push({
+        mesh: moonMesh,
+        angle: startAngle,
+        orbitRadius: moonCfg.orbit,
+        speed: moonCfg.speed,
+        yOffset: 0,
+        bobAmp: 0
+      });
+    });
+  });
+}
+
 function createSatellites(scene, loader, R, satelliteModel = null) {
   const satOrbit = (PLANETS.Earth.orbit + ASTEROID_BELT_INNER) * 0.5;
 
@@ -1406,6 +1490,7 @@ export default function SolarSystemPhotorealistic() {
     createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
+    createNaturalMoons(R);
     createParkerSolarProbe(solarGroup, R);
     // ===== AURORA 7 — visual final (sem marcadores de debug) =====
     {
