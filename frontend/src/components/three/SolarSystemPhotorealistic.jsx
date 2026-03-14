@@ -1213,7 +1213,8 @@ export default function SolarSystemPhotorealistic() {
     angles: {}, frameId: null, sunMat: null, coronaMat: null, elapsed: 0,
     auroras: [], focusTweens: null, isAnimatingFocus: false, solarGroup: null, outlinePass: null,
     userInteracting: false, initialZoomDone: false, focusTarget: null, hoverMesh: null,
-    introStarted: false, auroraPanelShown: false, aurora7: null
+    introStarted: false, auroraPanelShown: false, aurora7: null,
+    auroraEngineGlow: null, auroraEngineHalo: null, auroraTrail: [], auroraFallbackBody: null
   });
 
   const { objects, setSelectedObject, setAuroraPanelOpen, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
@@ -1230,6 +1231,7 @@ export default function SolarSystemPhotorealistic() {
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
     R.aurora7 = null; R.introStarted = false; R.auroraPanelShown = false;
+    R.auroraEngineGlow = null; R.auroraEngineHalo = null; R.auroraTrail = []; R.auroraFallbackBody = null;
     R.comets = null;
     const container = containerRef.current;
     const w = container.clientWidth, h = container.clientHeight;
@@ -1419,6 +1421,69 @@ export default function SolarSystemPhotorealistic() {
       const a7Light = new THREE.PointLight(0xffffff, 1.5, 8);
       a7Group.add(a7Light);
 
+      // Fallback discreto (só aparece se o GLB falhar)
+      const fallbackBody = new THREE.Mesh(
+        new THREE.BoxGeometry(0.35, 0.16, 0.9),
+        new THREE.MeshStandardMaterial({
+          color: 0x9da9b5,
+          metalness: 0.72,
+          roughness: 0.32,
+          emissive: new THREE.Color(0x111111),
+          emissiveIntensity: 0.08
+        })
+      );
+      a7Group.add(fallbackBody);
+      R.auroraFallbackBody = fallbackBody;
+
+      // Engine glow + halo (estilo emergent)
+      const engineGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xff7a1a,
+          toneMapped: false,
+          transparent: true,
+          opacity: 0.9,
+          depthWrite: false
+        })
+      );
+      engineGlow.position.set(0, 0, -0.65);
+      a7Group.add(engineGlow);
+
+      const engineHalo = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 16, 16),
+        new THREE.MeshBasicMaterial({
+          color: 0xffaa55,
+          toneMapped: false,
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
+        })
+      );
+      engineHalo.position.copy(engineGlow.position);
+      a7Group.add(engineHalo);
+      R.auroraEngineGlow = engineGlow;
+      R.auroraEngineHalo = engineHalo;
+
+      // Trail de "fogo" atrás da nave (partículas simples)
+      const trail = [];
+      for (let i = 0; i < 18; i++) {
+        const p = new THREE.Mesh(
+          new THREE.SphereGeometry(0.06, 10, 10),
+          new THREE.MeshBasicMaterial({
+            color: 0xff6a00,
+            toneMapped: false,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false
+          })
+        );
+        p.position.set((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, -0.9 - i * 0.22);
+        a7Group.add(p);
+        trail.push(p);
+      }
+      R.auroraTrail = trail;
+
       // Órbita local em torno da Terra (abaixo da órbita visual da Lua)
       const a7Angle = 2.5;
       const a7Orbit = 3.8;
@@ -1428,7 +1493,7 @@ export default function SolarSystemPhotorealistic() {
 
       R.aurora7 = a7Group;
       if (!R.moons) R.moons = [];
-      R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: a7YOffset, speed: 0.25 });
+      R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: a7YOffset, bobAmp: 0.08, speed: 0.25 });
 
       // Foco inicial na Aurora (cinemático curto)
       const auroraWorld = new THREE.Vector3();
@@ -1508,6 +1573,7 @@ export default function SolarSystemPhotorealistic() {
           });
 
           a7Group.add(model);
+          if (R.auroraFallbackBody) R.auroraFallbackBody.visible = false;
         },
         undefined,
         (err) => { console.error('Aurora 7 load error:', err); }
@@ -1763,7 +1829,7 @@ export default function SolarSystemPhotorealistic() {
           m.angle += m.speed * timeSpeed * dt;
           m.mesh.position.set(
             Math.cos(m.angle) * m.orbitRadius,
-            m.yOffset || 0,
+            (m.yOffset || 0) + (m.bobAmp ? Math.sin(m.angle * 8) * m.bobAmp : 0),
             Math.sin(m.angle) * m.orbitRadius
           );
         });
@@ -1775,6 +1841,28 @@ export default function SolarSystemPhotorealistic() {
         s.mesh.position.z = Math.sin(s.angle) * s.orbitRadius;
         s.mesh.rotation.y += 0.02 * timeSpeed * dt;
       });
+      // Aurora "emergent": glow pulsante + trail de fogo
+      if (R.auroraEngineGlow) {
+        const t = performance.now() * 0.001;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 12);
+        R.auroraEngineGlow.scale.setScalar(0.9 + pulse * 0.9);
+        if (R.auroraEngineGlow.material) R.auroraEngineGlow.material.opacity = 0.55 + pulse * 0.45;
+        if (R.auroraEngineHalo) {
+          R.auroraEngineHalo.scale.setScalar(1.0 + pulse * 1.6);
+          R.auroraEngineHalo.material.opacity = 0.12 + pulse * 0.22;
+        }
+        if (R.auroraTrail && R.auroraTrail.length) {
+          R.auroraTrail.forEach((p, i) => {
+            const ph = t * 15 - i * 0.55;
+            const flick = Math.max(0, Math.sin(ph));
+            p.material.opacity = 0.05 + flick * 0.55;
+            p.scale.setScalar(0.55 + flick * 0.95);
+            p.position.x = (Math.sin(ph * 0.7) * 0.08) * (1 + i * 0.02);
+            p.position.y = (Math.cos(ph * 0.8) * 0.06) * (1 + i * 0.02);
+            p.position.z = -0.9 - i * 0.22 - flick * 0.18;
+          });
+        }
+      }
       if (R.parkerGroup) {
         R.parkerAngle += PARKER_SPEED * timeSpeed * dt;
         R.parkerGroup.position.x = Math.cos(R.parkerAngle) * PARKER_ORBIT_RADIUS;
