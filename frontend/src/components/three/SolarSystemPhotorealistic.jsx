@@ -1435,54 +1435,10 @@ export default function SolarSystemPhotorealistic() {
       a7Group.add(fallbackBody);
       R.auroraFallbackBody = fallbackBody;
 
-      // Engine glow + halo (estilo emergent)
-      const engineGlow = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xff7a1a,
-          toneMapped: false,
-          transparent: true,
-          opacity: 0.9,
-          depthWrite: false
-        })
-      );
-      engineGlow.position.set(0, 0, -0.65);
-      a7Group.add(engineGlow);
-
-      const engineHalo = new THREE.Mesh(
-        new THREE.SphereGeometry(0.42, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xffaa55,
-          toneMapped: false,
-          transparent: true,
-          opacity: 0.28,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending
-        })
-      );
-      engineHalo.position.copy(engineGlow.position);
-      a7Group.add(engineHalo);
-      R.auroraEngineGlow = engineGlow;
-      R.auroraEngineHalo = engineHalo;
-
-      // Trail de "fogo" atrás da nave (partículas simples)
-      const trail = [];
-      for (let i = 0; i < 18; i++) {
-        const p = new THREE.Mesh(
-          new THREE.SphereGeometry(0.06, 10, 10),
-          new THREE.MeshBasicMaterial({
-            color: 0xff6a00,
-            toneMapped: false,
-            transparent: true,
-            opacity: 0.35,
-            depthWrite: false
-          })
-        );
-        p.position.set((Math.random() - 0.5) * 0.06, (Math.random() - 0.5) * 0.06, -0.9 - i * 0.22);
-        a7Group.add(p);
-        trail.push(p);
-      }
-      R.auroraTrail = trail;
+      // Intencionalmente sem glow/trilha laranja para manter a cena limpa.
+      R.auroraEngineGlow = null;
+      R.auroraEngineHalo = null;
+      R.auroraTrail = [];
 
       // Órbita local em torno da Terra (abaixo da órbita visual da Lua)
       const a7Angle = 2.5;
