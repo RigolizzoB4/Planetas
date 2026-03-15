@@ -1103,7 +1103,7 @@ function createNaturalMoons(R) {
         roughness: moonCfg.rough,
         metalness: 0.05,
         emissive: new THREE.Color(moonCfg.color),
-        emissiveIntensity: 0.06
+        emissiveIntensity: 0.5
       });
 
       const moonMesh = new THREE.Mesh(
@@ -1127,6 +1127,9 @@ function createNaturalMoons(R) {
       );
 
       parentPlanet.add(moonMesh);
+
+      const moonLight = new THREE.PointLight(0xffffff, 1.0, 6);
+      moonMesh.add(moonLight);
 
       R.moons.push({
         mesh: moonMesh,
