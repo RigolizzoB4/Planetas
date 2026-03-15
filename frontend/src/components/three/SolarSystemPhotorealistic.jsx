@@ -346,7 +346,7 @@ const SATELLITES = [
 // ==================== PBR MAP GENERATORS ====================
 function genNormalMap(img, str) {
   const canvas = document.createElement('canvas');
-  const w = Math.min(img.width, 1024), h = Math.min(img.height, 512);
+  const w = Math.min(img.width, 4096), h = Math.min(img.height, 2048);
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, w, h);
@@ -374,7 +374,7 @@ function genNormalMap(img, str) {
 
 function genRoughnessMap(img, base, vary) {
   const canvas = document.createElement('canvas');
-  const w = Math.min(img.width, 512), h = Math.min(img.height, 256);
+  const w = Math.min(img.width, 2048), h = Math.min(img.height, 1024);
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, w, h);
@@ -400,19 +400,20 @@ function constMap(val) {
   return t;
 }
 
-// Sprite circular suave para partículas (evita aspecto quadrado / Minecraft)
-function createSoftPointTexture(size = 64) {
+// Textura redonda para estrelas (glow suave, nunca quadrado)
+function createStarPointTexture(size = 128) {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   const cx = size / 2;
-  const r = cx - 1;
-  const gradient = ctx.createRadialGradient(cx, cx, 0, cx, cx, r);
-  gradient.addColorStop(0, 'rgba(255,255,255,1)');
-  gradient.addColorStop(0.25, 'rgba(255,255,255,0.9)');
-  gradient.addColorStop(0.5, 'rgba(255,255,255,0.4)');
-  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  const gradient = ctx.createRadialGradient(cx, cx, 0, cx, cx, cx);
+  gradient.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+  gradient.addColorStop(0.08, 'rgba(255, 255, 255, 0.95)');
+  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.6)');
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.2)');
+  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.04)');
+  gradient.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
   const tex = new THREE.CanvasTexture(canvas);
@@ -420,7 +421,70 @@ function createSoftPointTexture(size = 64) {
   return tex;
 }
 
-const SOFT_POINT_TEX = createSoftPointTexture(64);
+const STAR_POINT_TEX = createStarPointTexture(128);
+
+// Gera campo de estrelas 3D com cores astronômicas realistas
+function generateStarField(count, innerRadius, outerRadius) {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    const r = innerRadius + Math.random() * (outerRadius - innerRadius);
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[i3]     = r * Math.sin(phi) * Math.cos(theta);
+    positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+    positions[i3 + 2] = r * Math.cos(phi);
+    const spectral = Math.random();
+    if (spectral < 0.05) { colors[i3] = 1.0; colors[i3+1] = 0.42; colors[i3+2] = 0.28; }
+    else if (spectral < 0.15) { colors[i3] = 1.0; colors[i3+1] = 0.72; colors[i3+2] = 0.45; }
+    else if (spectral < 0.35) { colors[i3] = 1.0; colors[i3+1] = 0.95; colors[i3+2] = 0.72; }
+    else if (spectral < 0.55) { colors[i3] = 1.0; colors[i3+1] = 0.98; colors[i3+2] = 0.90; }
+    else if (spectral < 0.80) { colors[i3] = 1.0; colors[i3+1] = 1.0; colors[i3+2] = 1.0; }
+    else if (spectral < 0.95) { colors[i3] = 0.75; colors[i3+1] = 0.85; colors[i3+2] = 1.0; }
+    else { colors[i3] = 0.55; colors[i3+1] = 0.70; colors[i3+2] = 1.0; }
+    const mag = Math.random();
+    if (mag < 0.75) sizes[i] = 0.5 + Math.random() * 1.5;
+    else if (mag < 0.93) sizes[i] = 2.0 + Math.random() * 3.0;
+    else if (mag < 0.99) sizes[i] = 4.0 + Math.random() * 4.0;
+    else sizes[i] = 7.0 + Math.random() * 5.0;
+  }
+  return { positions, colors, sizes };
+}
+
+// Custom shader para estrelas perfeitamente redondas com glow
+function createStarShaderMaterial(texture) {
+  return new THREE.ShaderMaterial({
+    uniforms: { pointTexture: { value: texture }, globalOpacity: { value: 1.0 } },
+    vertexShader: `
+      attribute float size;
+      varying vec3 vColor;
+      void main() {
+        vColor = color;
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * (280.0 / -mvPosition.z);
+        gl_PointSize = clamp(gl_PointSize, 0.5, 32.0);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D pointTexture;
+      uniform float globalOpacity;
+      varying vec3 vColor;
+      void main() {
+        vec4 texColor = texture2D(pointTexture, gl_PointCoord);
+        if (texColor.a < 0.01) discard;
+        gl_FragColor = vec4(vColor * texColor.rgb, texColor.a * globalOpacity);
+      }
+    `,
+    blending: THREE.AdditiveBlending,
+    depthTest: true,
+    depthWrite: false,
+    transparent: true,
+    vertexColors: true
+  });
+}
 
 // Aplica configuração de textura para skybox: sRGB, sem repetição, boa filtragem
 function applySkyboxTex(t) {
@@ -433,41 +497,49 @@ function applySkyboxTex(t) {
 }
 
 // ==================== SCENE BUILDERS ====================
-// Skybox em 4 camadas (estático, 360°, profundidade)
-// Camada 1: mapa estelar 8K | Camada 2: nebulae sutis | Camada 3: star particles | Camada 4: Via Láctea leve
+// Skybox imersivo 7 camadas: 8K star map + nebulosa + Via Lactea + 3 camadas estrelas 3D + Olho de Deus
 function createSkyboxLayers(scene, loader) {
   const segments = 64;
   const skyGeo = new THREE.SphereGeometry(SKYBOX_RADIUS, segments, segments);
 
-  // —— Camada 1: mapa de estrelas 8K equirectangular (sem iluminação, estático)
+  // ====== CAMADA 1: Mapa de estrelas 8K equirectangular ======
   const layer1Mat = new THREE.MeshBasicMaterial({
-    map: null,
-    side: THREE.BackSide,
-    depthWrite: false,
-    fog: false
+    map: null, side: THREE.BackSide, depthWrite: false, fog: false
   });
   const layer1 = new THREE.Mesh(skyGeo.clone(), layer1Mat);
   layer1.name = 'SkyboxLayer1_StarMap';
   layer1.renderOrder = -10;
   scene.add(layer1);
 
-  // Fallback procedural: fundo visível desde o primeiro frame (importante no Netlify se texturas demorarem ou falharem)
   const applyProceduralStarfield = () => {
     const w = 2048, h = 1024;
     const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#05070b';
+    ctx.fillStyle = '#030510';
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#ffffff';
-    for (let i = 0; i < 14000; i++) {
+    for (let i = 0; i < 18000; i++) {
       const x = Math.floor(Math.random() * w);
       const y = Math.floor(Math.random() * h);
-      const r = Math.random() > 0.92 ? 1.2 : Math.random() > 0.7 ? 0.8 : 0.4;
+      const brightness = Math.random();
+      const rad = brightness > 0.97 ? 2.0 : brightness > 0.85 ? 1.2 : brightness > 0.5 ? 0.6 : 0.3;
+      const temp = Math.random();
+      if (temp < 0.15) ctx.fillStyle = 'rgba(255,200,150,' + (0.4 + brightness * 0.6) + ')';
+      else if (temp < 0.4) ctx.fillStyle = 'rgba(255,250,220,' + (0.4 + brightness * 0.6) + ')';
+      else if (temp < 0.85) ctx.fillStyle = 'rgba(255,255,255,' + (0.3 + brightness * 0.7) + ')';
+      else ctx.fillStyle = 'rgba(180,210,255,' + (0.4 + brightness * 0.6) + ')';
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x, y, rad, 0, Math.PI * 2);
       ctx.fill();
+      if (brightness > 0.92) {
+        const grad = ctx.createRadialGradient(x, y, 0, x, y, rad * 4);
+        grad.addColorStop(0, 'rgba(255,255,255,' + (brightness * 0.3) + ')');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(x, y, rad * 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     const tex = new THREE.CanvasTexture(canvas);
     applySkyboxTex(tex);
@@ -476,128 +548,102 @@ function createSkyboxLayers(scene, loader) {
   };
 
   loader.load(STARMAP_8K, (t) => {
-    applySkyboxTex(t);
-    layer1Mat.map = t;
-    layer1Mat.needsUpdate = true;
+    applySkyboxTex(t); layer1Mat.map = t; layer1Mat.needsUpdate = true;
   }, undefined, () => {
     loader.load(STARMAP_8K_PNG, (t) => {
-      applySkyboxTex(t);
-      layer1Mat.map = t;
-      layer1Mat.needsUpdate = true;
+      applySkyboxTex(t); layer1Mat.map = t; layer1Mat.needsUpdate = true;
     }, undefined, () => {
       loader.load(STARMAP_FALLBACK, (t) => {
-        applySkyboxTex(t);
-        layer1Mat.map = t;
-        layer1Mat.needsUpdate = true;
-      }, undefined, () => {
-        applyProceduralStarfield();
-        if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
-      });
+        applySkyboxTex(t); layer1Mat.map = t; layer1Mat.needsUpdate = true;
+      }, undefined, () => {});
     });
   });
-  // Mostra fundo procedural logo (substituído quando textura carregar), para Netlify não ficar preto
   applyProceduralStarfield();
-  if (scene.background && scene.background.setHex) scene.background.setHex(0x05070B);
 
-  // —— Camada 2: nebulosas sutis (mais visíveis para fundo realista)
+  // ====== CAMADA 2: Nebulosa sutil ======
   const layer2Mat = new THREE.MeshBasicMaterial({
-    map: null,
-    side: THREE.BackSide,
-    transparent: true,
-    opacity: 0.26,
-    depthWrite: false,
-    fog: false
+    map: null, side: THREE.BackSide, transparent: true, opacity: 0.22, depthWrite: false, fog: false
   });
   const layer2 = new THREE.Mesh(skyGeo.clone(), layer2Mat);
   layer2.name = 'SkyboxLayer2_Nebula';
   layer2.renderOrder = -9;
   scene.add(layer2);
-
   loader.load(NEBULA_OVERLAY, (t) => {
-    applySkyboxTex(t);
-    layer2Mat.map = t;
-    layer2Mat.needsUpdate = true;
+    applySkyboxTex(t); layer2Mat.map = t; layer2Mat.needsUpdate = true;
   }, undefined, () => {});
 
-  // —— Camada 3: mais estrelas (parallax) — densidade maior para fundo mais realista
-  const PARTICLE_COUNT = 5000;
-  const pos = new Float32Array(PARTICLE_COUNT * 3);
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    const r = 800 + Math.random() * 1200;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    pos[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-    pos[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-    pos[i * 3 + 2] = r * Math.cos(phi);
-  }
-  const particleGeo = new THREE.BufferGeometry();
-  particleGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const particleMat = new THREE.PointsMaterial({
-    color: 0xffffff,
-    size: 1,
-    sizeAttenuation: false,
-    transparent: true,
-    opacity: 0.62,
-    depthWrite: false,
-    map: SOFT_POINT_TEX,
-    alphaMap: SOFT_POINT_TEX,
-    blending: THREE.NormalBlending
+  // ====== CAMADA 3: Via Lactea ======
+  const layer3Mat = new THREE.MeshBasicMaterial({
+    map: null, side: THREE.BackSide, transparent: true, opacity: 0.20, depthWrite: false, fog: false
   });
-  const layer3 = new THREE.Points(particleGeo, particleMat);
-  layer3.name = 'SkyboxLayer3_StarParticles';
+  const layer3 = new THREE.Mesh(skyGeo.clone(), layer3Mat);
+  layer3.name = 'SkyboxLayer3_MilkyWay';
   layer3.renderOrder = -8;
   scene.add(layer3);
-
-  // —— Camada 4: Via Láctea mais visível
-  const layer4Mat = new THREE.MeshBasicMaterial({
-    map: null,
-    side: THREE.BackSide,
-    transparent: true,
-    opacity: 0.26,
-    depthWrite: false,
-    fog: false
-  });
-  const layer4 = new THREE.Mesh(skyGeo.clone(), layer4Mat);
-  layer4.name = 'SkyboxLayer4_MilkyWay';
-  layer4.renderOrder = -7;
-  scene.add(layer4);
-
   loader.load(MILKY_WAY_BAND, (t) => {
-    applySkyboxTex(t);
-    layer4Mat.map = t;
-    layer4Mat.needsUpdate = true;
+    applySkyboxTex(t); layer3Mat.map = t; layer3Mat.needsUpdate = true;
   }, undefined, () => {});
 
-  // —— Camada 5: “Olho de Deus” (nebulosa Helix) — mancha suave procedural no céu
+  // ====== CAMADA 4: Estrelas DISTANTES 3D (10.000) ======
+  const farStars = generateStarField(10000, 1500, 4000);
+  const farGeo = new THREE.BufferGeometry();
+  farGeo.setAttribute('position', new THREE.BufferAttribute(farStars.positions, 3));
+  farGeo.setAttribute('color', new THREE.BufferAttribute(farStars.colors, 3));
+  farGeo.setAttribute('size', new THREE.BufferAttribute(farStars.sizes, 1));
+  const farPoints = new THREE.Points(farGeo, createStarShaderMaterial(STAR_POINT_TEX));
+  farPoints.name = 'Stars_Far';
+  farPoints.renderOrder = -7;
+  scene.add(farPoints);
+
+  // ====== CAMADA 5: Estrelas MEDIAS 3D (8.000) ======
+  const midStars = generateStarField(8000, 400, 1500);
+  const midGeo = new THREE.BufferGeometry();
+  midGeo.setAttribute('position', new THREE.BufferAttribute(midStars.positions, 3));
+  midGeo.setAttribute('color', new THREE.BufferAttribute(midStars.colors, 3));
+  midGeo.setAttribute('size', new THREE.BufferAttribute(midStars.sizes, 1));
+  const midPoints = new THREE.Points(midGeo, createStarShaderMaterial(STAR_POINT_TEX));
+  midPoints.name = 'Stars_Mid';
+  midPoints.renderOrder = -6;
+  scene.add(midPoints);
+
+  // ====== CAMADA 6: Estrelas PROXIMAS 3D (5.000) ======
+  const nearStars = generateStarField(5000, 50, 400);
+  const nearGeo = new THREE.BufferGeometry();
+  nearGeo.setAttribute('position', new THREE.BufferAttribute(nearStars.positions, 3));
+  nearGeo.setAttribute('color', new THREE.BufferAttribute(nearStars.colors, 3));
+  nearGeo.setAttribute('size', new THREE.BufferAttribute(nearStars.sizes, 1));
+  const nearMat = createStarShaderMaterial(STAR_POINT_TEX);
+  nearMat.uniforms.globalOpacity.value = 0.85;
+  const nearPoints = new THREE.Points(nearGeo, nearMat);
+  nearPoints.name = 'Stars_Near';
+  nearPoints.renderOrder = -5;
+  scene.add(nearPoints);
+
+  // ====== CAMADA 7: Olho de Deus procedural ======
   const eyeCanvas = document.createElement('canvas');
   const eyeW = 512, eyeH = 256;
   eyeCanvas.width = eyeW; eyeCanvas.height = eyeH;
   const eyeCtx = eyeCanvas.getContext('2d');
   const eyeGrad = eyeCtx.createRadialGradient(eyeW * 0.5, eyeH * 0.5, 0, eyeW * 0.5, eyeH * 0.5, eyeW * 0.45);
-  eyeGrad.addColorStop(0, 'rgba(180, 200, 255, 0.35)');
-  eyeGrad.addColorStop(0.4, 'rgba(120, 140, 200, 0.12)');
-  eyeGrad.addColorStop(0.7, 'rgba(80, 100, 160, 0.04)');
+  eyeGrad.addColorStop(0, 'rgba(180, 200, 255, 0.30)');
+  eyeGrad.addColorStop(0.4, 'rgba(120, 140, 200, 0.10)');
+  eyeGrad.addColorStop(0.7, 'rgba(80, 100, 160, 0.03)');
   eyeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   eyeCtx.fillStyle = eyeGrad;
   eyeCtx.fillRect(0, 0, eyeW, eyeH);
   const eyeTex = new THREE.CanvasTexture(eyeCanvas);
   applySkyboxTex(eyeTex);
-  const layer5Mat = new THREE.MeshBasicMaterial({
-    map: eyeTex,
-    side: THREE.BackSide,
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-    fog: false
+  const eyeMat = new THREE.MeshBasicMaterial({
+    map: eyeTex, side: THREE.BackSide, transparent: true, opacity: 0.4, depthWrite: false, fog: false
   });
-  const layer5 = new THREE.Mesh(skyGeo.clone(), layer5Mat);
-  layer5.name = 'SkyboxLayer5_EyeOfGod';
-  layer5.renderOrder = -6;
-  layer5.rotation.y = Math.PI * 0.35;
-  layer5.rotation.x = 0.12;
-  scene.add(layer5);
+  const eyeMesh = new THREE.Mesh(skyGeo.clone(), eyeMat);
+  eyeMesh.name = 'SkyboxLayer_EyeOfGod';
+  eyeMesh.renderOrder = -4;
+  eyeMesh.rotation.y = Math.PI * 0.35;
+  eyeMesh.rotation.x = 0.12;
+  scene.add(eyeMesh);
 
-  return layer3;
+  return nearPoints;
 }
 
 // Programação completa do Sol com logo (spec): fotosfera → core + camadas internas + logo B4 + ERD-FX → glow.
@@ -785,28 +831,31 @@ function createLabel(text) {
 
 function createStaticConstellations(scene) {
   const skyMat = new THREE.LineBasicMaterial({
-    color: 0x8c8c8c,
-    transparent: true,
-    opacity: 0.08,
-    depthWrite: false
+    color: 0xaaaacc, transparent: true, opacity: 0.06, depthWrite: false, linewidth: 1
   });
+  const R = 2800;
+  const toVec = (ra, dec) => {
+    const phi = (90 - dec) * Math.PI / 180;
+    const theta = ra * Math.PI / 180;
+    return new THREE.Vector3(
+      R * Math.sin(phi) * Math.cos(theta),
+      R * Math.cos(phi),
+      R * Math.sin(phi) * Math.sin(theta)
+    );
+  };
   const constellations = [
-    // Orion
-    [[-140, 70, -260], [-125, 52, -255], [-108, 70, -248], [-125, 88, -242], [-140, 70, -260], [-125, 52, -255], [-118, 34, -248], [-125, 18, -242]],
-    // Cassiopeia
-    [[90, 95, -280], [76, 108, -276], [62, 92, -270], [48, 106, -266], [34, 90, -262]],
-    // Big Dipper
-    [[-170, 120, -300], [-152, 124, -296], [-136, 116, -292], [-118, 120, -288], [-104, 128, -284], [-96, 140, -280], [-112, 146, -276]],
-    // Crux
-    [[55, -55, -255], [64, -68, -252], [74, -55, -248], [64, -42, -244], [55, -55, -255]],
-    // Leo
-    [[-210, 20, -310], [-192, 28, -306], [-176, 22, -302], [-160, 28, -298], [-146, 22, -294], [-160, 14, -290], [-176, 8, -286], [-210, 20, -310]]
+    [[80, 7], [82, 2], [84, 7], [82, 12], [80, 7], [82, 2], [83, -4], [82, -8]],
+    [[5, 59], [12, 62], [18, 58], [25, 62], [32, 58]],
+    [[160, 62], [165, 58], [175, 56], [185, 58], [192, 55], [198, 50], [188, 48]],
+    [[190, -58], [195, -63], [200, -58], [195, -53], [190, -58]],
+    [[245, -25], [248, -28], [252, -32], [255, -36], [258, -38], [262, -35], [265, -32]],
+    [[150, 20], [155, 24], [162, 20], [168, 24], [175, 20], [168, 14], [162, 10], [150, 20]]
   ];
-
   constellations.forEach(pts => {
-    const vectors = pts.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+    const vectors = pts.map(p => toVec(p[0], p[1]));
     const geometry = new THREE.BufferGeometry().setFromPoints(vectors);
     const line = new THREE.Line(geometry, skyMat);
+    line.renderOrder = -3;
     scene.add(line);
   });
 }
@@ -1103,7 +1152,7 @@ function createNaturalMoons(R) {
         roughness: moonCfg.rough,
         metalness: 0.05,
         emissive: new THREE.Color(moonCfg.color),
-        emissiveIntensity: 0.5
+        emissiveIntensity: 0.06
       });
 
       const moonMesh = new THREE.Mesh(
@@ -1127,9 +1176,6 @@ function createNaturalMoons(R) {
       );
 
       parentPlanet.add(moonMesh);
-
-      const moonLight = new THREE.PointLight(0xffffff, 1.0, 6);
-      moonMesh.add(moonLight);
 
       R.moons.push({
         mesh: moonMesh,
