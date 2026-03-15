@@ -100,7 +100,7 @@ export const useSolarSystemStore = create((set, get) => ({
   viewMode: '3D', // '2D' or '3D'
   showOrbits: true,
   showLabels: true,
-  showCrossSectionSun: false,
+  showCrossSectionSun: true,
   
   // Camera
   cameraPreset: 'Overview',
