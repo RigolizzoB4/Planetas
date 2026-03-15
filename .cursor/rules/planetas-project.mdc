@@ -1,0 +1,46 @@
+---
+description: Core rules for the Planetas 3D solar system project
+alwaysApply: true
+---
+
+# Planetas Project Rules
+
+## Project Structure
+- Frontend code is in: `frontend/`
+- Main 3D component: `frontend/src/components/three/SolarSystemPhotorealistic.jsx`
+- The project deploys to Vercel with Root Directory set to `frontend`
+
+## Critical Rules
+
+### Always save files after editing
+After making any code change, ALWAYS save the file. Do not just show the diff — apply it.
+
+### Never create new files when editing existing ones
+If asked to modify SolarSystemPhotorealistic.jsx, edit THAT file directly. Do NOT create a new file or component unless explicitly asked.
+
+### Verify changes after applying them
+After editing, show the relevant lines of the modified file to confirm the change was applied correctly.
+
+### Git workflow
+After changes are confirmed, run:
+```
+git add . ; git commit -m "description" ; git push origin main
+```
+
+### Three.js specifics
+- All 3D objects need sufficient `emissiveIntensity` (>= 0.3) to be visible in space
+- Add `PointLight` to small objects (moons, satellites) so they're visible
+- The refs object (`R = refs.current`) stores: planets, satellites, moons, angles, sunLayers, etc.
+- Moons are added as children of their parent planet mesh
+- The animation loop in the second useEffect handles `R.moons` movement
+
+### DO NOT remove or modify without explicit permission:
+- Sun shader (SUN_FRAG)
+- Corona shader (CORONA_FRAG)
+- Atmosphere shader (ATMO_FRAG)
+- Planet configuration (PLANETS object)
+- Skybox layers
+- PostProcessing pipeline (Bloom, SMAA, OutlinePass)
+
+### vercel.json
+The `vercel.json` is in `frontend/` and should ONLY contain rewrites. Never add buildCommand, outputDirectory, or installCommand to it — those are configured in the Vercel dashboard.
