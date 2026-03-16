@@ -1591,7 +1591,7 @@ export default function SolarSystemPhotorealistic() {
       if (!R.introStarted) {
         R.introStarted = true;
         // controls.enabled = false;
-        R.isAnimatingFocus = true;
+        R.isAnimatingFocus = false;
         const safetyTimeout = setTimeout(() => {
           controls.enabled = true;
           R.isAnimatingFocus = false;
@@ -1728,7 +1728,7 @@ export default function SolarSystemPhotorealistic() {
       if (R.focusTweens?.length) {
         R.focusTweens.forEach(t => t.kill());
       }
-      R.isAnimatingFocus = true;
+      R.isAnimatingFocus = false;
       R.hoverMesh = null;
 
       const camTween = gsap.to(camera.position, {
