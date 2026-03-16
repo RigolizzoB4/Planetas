@@ -1590,7 +1590,7 @@ export default function SolarSystemPhotorealistic() {
       a7Group.getWorldPosition(auroraWorld);
       if (!R.introStarted) {
         R.introStarted = true;
-        controls.enabled = false;
+        // controls.enabled = false;
         R.isAnimatingFocus = true;
         const safetyTimeout = setTimeout(() => {
           controls.enabled = true;
