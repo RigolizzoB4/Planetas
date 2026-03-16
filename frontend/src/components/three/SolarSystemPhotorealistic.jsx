@@ -1592,6 +1592,11 @@ export default function SolarSystemPhotorealistic() {
         R.introStarted = true;
         controls.enabled = false;
         R.isAnimatingFocus = true;
+        const safetyTimeout = setTimeout(() => {
+          controls.enabled = true;
+          R.isAnimatingFocus = false;
+          R.initialZoomDone = true;
+        }, 8000);
         setTimeout(() => {
           const target = new THREE.Vector3();
           a7Group.getWorldPosition(target);
@@ -1600,6 +1605,7 @@ export default function SolarSystemPhotorealistic() {
             x: camPos.x, y: camPos.y, z: camPos.z,
             duration: 3.0, ease: 'power2.inOut',
             onComplete: () => {
+              clearTimeout(safetyTimeout);
               controls.enabled = true;
               R.isAnimatingFocus = false;
               R.initialZoomDone = true;
@@ -1841,12 +1847,7 @@ export default function SolarSystemPhotorealistic() {
       const logoPulse = 0.85 + 0.15 * Math.sin(R.elapsed * 0.8);
       if (R.sunLayers.logoPlane) R.sunLayers.logoPlane.material.opacity = logoPulse;
       if (R.sunLayers.fxSprite) R.sunLayers.fxSprite.material.opacity = logoPulse;
-      // Hover: target acompanha objeto em movimento (não move câmera)
-      if (R.hoverMesh && !R.userInteracting && !R.isAnimatingFocus) {
-        const wp = new THREE.Vector3();
-        R.hoverMesh.getWorldPosition(wp);
-        controls.target.lerp(wp, 0.05);
-      }
+      // Hover: desabilitado para não travar navegação do usuário
 
       pushCameraOutOfBodies();
       // Garantir fundo preto a cada frame (evita branco no Netlify/cache)
