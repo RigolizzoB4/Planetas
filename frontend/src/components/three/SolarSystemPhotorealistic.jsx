@@ -280,16 +280,16 @@ function buildRealisticEnvMap() {
 
 // ==================== PLANET CONFIG (PBR) — preset NASA Eyes + órbitas 2x mais distantes ====================
 const PLANETS = {
-  // órbitas dobradas em relação ao layout original (mais espaço para estações)
-  Mercury: { size: 0.38, orbit: 20,  speed: 0.048, rot: 0.005, color: 0x8C7E6D, rough: 0.92, metal: 0.08, nStr: 1.8, envMapIntensity: 0.15, emissiveIntensity: 0.04 },
-  Venus:   { size: 0.95, orbit: 28,  speed: 0.035, rot: -0.002, color: 0xC4A35A, rough: 0.75, metal: 0.05, nStr: 0.8, envMapIntensity: 0.12, emissiveIntensity: 0.04 },
-  Earth:   { size: 1.0,  orbit: 36,  speed: 0.029, rot: 0.02,  color: 0x2E6B9E, rough: 0.65, metal: 0.12, nStr: 1.2, envMapIntensity: 0.25, emissiveIntensity: 0.035, atmo: true, clouds: true },
-  Mars:    { size: 0.53, orbit: 48,  speed: 0.024, rot: 0.018, color: 0xA0522D, rough: 0.95, metal: 0.04, nStr: 2.0, envMapIntensity: 0.10, emissiveIntensity: 0.04 },
-  Jupiter: { size: 2.8,  orbit: 84,  speed: 0.013, rot: 0.045, color: 0xC4A45A, rough: 0.45, metal: 0.02, nStr: 0.3, envMapIntensity: 0.35, emissiveIntensity: 0.05 },
-  Saturn:  { size: 2.3,  orbit: 116, speed: 0.0097, rot: 0.038, color: 0xD4C07A, rough: 0.42, metal: 0.02, nStr: 0.25, envMapIntensity: 0.40, emissiveIntensity: 0.05, rings: true },
-  Uranus:  { size: 1.6,  orbit: 148, speed: 0.0068, rot: -0.03, color: 0x7EC8C8, rough: 0.38, metal: 0.03, nStr: 0.15, envMapIntensity: 0.45, emissiveIntensity: 0.07 },
-  Neptune: { size: 1.5,  orbit: 180, speed: 0.0054, rot: 0.032, color: 0x3366BB, rough: 0.35, metal: 0.03, nStr: 0.15, envMapIntensity: 0.50, emissiveIntensity: 0.09 },
-  Pluto:   { size: 0.18, orbit: 200, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.95, metal: 0.02, nStr: 1.0, envMapIntensity: 0.08, emissiveIntensity: 0.12 }
+  // PBR realista estilo NASA Eyes — normal maps fortes, roughness variado, anéis nos gigantes
+  Mercury: { size: 0.38, orbit: 20,  speed: 0.048, rot: 0.005, color: 0x8C7E6D, rough: 0.88, metal: 0.06, nStr: 4.0, envMapIntensity: 0.20, emissiveIntensity: 0.02 },
+  Venus:   { size: 0.95, orbit: 28,  speed: 0.035, rot: -0.002, color: 0xC4A35A, rough: 0.70, metal: 0.04, nStr: 2.0, envMapIntensity: 0.18, emissiveIntensity: 0.02, atmo: true, atmoColor: 0xddaa44 },
+  Earth:   { size: 1.0,  orbit: 36,  speed: 0.029, rot: 0.02,  color: 0x2E6B9E, rough: 0.55, metal: 0.15, nStr: 3.0, envMapIntensity: 0.35, emissiveIntensity: 0.015, atmo: true, clouds: true },
+  Mars:    { size: 0.53, orbit: 48,  speed: 0.024, rot: 0.018, color: 0xA0522D, rough: 0.90, metal: 0.03, nStr: 5.0, envMapIntensity: 0.15, emissiveIntensity: 0.02 },
+  Jupiter: { size: 2.8,  orbit: 84,  speed: 0.013, rot: 0.045, color: 0xC4A45A, rough: 0.50, metal: 0.02, nStr: 1.5, envMapIntensity: 0.40, emissiveIntensity: 0.02, rings: true, ringStyle: 'jupiter' },
+  Saturn:  { size: 2.3,  orbit: 116, speed: 0.0097, rot: 0.038, color: 0xD4C07A, rough: 0.48, metal: 0.02, nStr: 1.2, envMapIntensity: 0.45, emissiveIntensity: 0.02, rings: true },
+  Uranus:  { size: 1.6,  orbit: 148, speed: 0.0068, rot: -0.03, color: 0x7EC8C8, rough: 0.42, metal: 0.03, nStr: 0.8, envMapIntensity: 0.50, emissiveIntensity: 0.03, rings: true, ringStyle: 'uranus' },
+  Neptune: { size: 1.5,  orbit: 180, speed: 0.0054, rot: 0.032, color: 0x3366BB, rough: 0.40, metal: 0.03, nStr: 0.8, envMapIntensity: 0.55, emissiveIntensity: 0.03, rings: true, ringStyle: 'neptune' },
+  Pluto:   { size: 0.18, orbit: 200, speed: 0.004, rot: 0.008, color: 0x9E8E7E, rough: 0.90, metal: 0.02, nStr: 3.0, envMapIntensity: 0.12, emissiveIntensity: 0.05 }
 };
 
 const NATURAL_MOONS = {
@@ -1041,8 +1041,8 @@ function createPlanet(scene, loader, name, cfg, R) {
       mat.emissiveMap = null;
       mat.emissiveIntensity = emissIntensity;
       const nMap = genNormalMap(tex.image, cfg.nStr);
-      if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 0.3, cfg.nStr * 0.3); }
-      const rMap = genRoughnessMap(tex.image, cfg.rough, 0.2);
+      if (nMap) { mat.normalMap = nMap; mat.normalScale.set(cfg.nStr * 1.0, cfg.nStr * 1.0); }
+      const rMap = genRoughnessMap(tex.image, cfg.rough, 0.4);
       if (rMap) mat.roughnessMap = rMap;
       mat.needsUpdate = true;
     };
@@ -1083,18 +1083,33 @@ function createPlanet(scene, loader, name, cfg, R) {
   label.position.y = cfg.size + 1.2;
   planet.add(label);
 
-  // Saturn rings
+  // Planetary rings (Saturn, Jupiter, Uranus, Neptune)
   if (cfg.rings) {
-    const ringGeo = new THREE.RingGeometry(cfg.size * 1.3, cfg.size * 2.5, 128);
+    const style = cfg.ringStyle || 'saturn';
+    let innerMul, outerMul, ringColor, ringOpacity, ringTilt;
+    if (style === 'jupiter') {
+      innerMul = 1.15; outerMul = 1.5; ringColor = 0x8B7355; ringOpacity = 0.15; ringTilt = Math.PI / 2.1;
+    } else if (style === 'uranus') {
+      innerMul = 1.4; outerMul = 2.2; ringColor = 0x88AACC; ringOpacity = 0.25; ringTilt = Math.PI / 2.0;
+    } else if (style === 'neptune') {
+      innerMul = 1.3; outerMul = 1.8; ringColor = 0x5566AA; ringOpacity = 0.12; ringTilt = Math.PI / 2.1;
+    } else {
+      innerMul = 1.3; outerMul = 2.5; ringColor = 0xC9B896; ringOpacity = 0.8; ringTilt = Math.PI / 2.5;
+    }
+    const ringGeo = new THREE.RingGeometry(cfg.size * innerMul, cfg.size * outerMul, 128);
     const ringMat = new THREE.MeshStandardMaterial({
-      color: 0xC9B896, side: THREE.DoubleSide, transparent: true, opacity: 0.8, roughness: 0.8, metalness: 0.0
+      color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: ringOpacity, roughness: 0.8, metalness: 0.0
     });
-    const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
-    const ring2k = TEX.SaturnRing.replace(/8k_/g, '2k_');
-    loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing))));
+    if (style === 'saturn') {
+      const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
+      const ring2k = TEX.SaturnRing.replace(/8k_/g, '2k_');
+      loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing))));
+    }
     const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.rotation.x = Math.PI / 2.5; ring.receiveShadow = true;
+    ring.rotation.x = ringTilt; ring.receiveShadow = true;
     planet.add(ring);
+    // Uranus has nearly vertical tilt (98°)
+    if (style === 'uranus') ring.rotation.x = 0.3;
   }
 
   // Earth clouds
@@ -1111,13 +1126,29 @@ function createPlanet(scene, loader, name, cfg, R) {
     R.planets['EarthClouds'] = clouds;
   }
 
-  // Earth atmosphere (Fresnel glow)
+  // Atmosphere (Fresnel glow) — Earth blue, Venus amber
   if (cfg.atmo) {
+    const atmoCol = cfg.atmoColor ? new THREE.Color(cfg.atmoColor) : new THREE.Color(0.3, 0.6, 1.0);
     const atmoMat = new THREE.ShaderMaterial({
-      vertexShader: VERT, fragmentShader: ATMO_FRAG,
+      uniforms: { uAtmoColor: { value: atmoCol } },
+      vertexShader: VERT,
+      fragmentShader: `
+        #include <common>
+        #include <logdepthbuf_pars_fragment>
+        uniform vec3 uAtmoColor;
+        varying vec3 vNormal;
+        varying vec3 vWorldPos;
+        void main() {
+          float f = 1.0 - max(dot(vNormal, normalize(cameraPosition-vWorldPos)), 0.0);
+          f = pow(f, 3.5);
+          gl_FragColor = vec4(uAtmoColor * 1.5, f * 0.75);
+          #include <logdepthbuf_fragment>
+        }
+      `,
       transparent: true, side: THREE.BackSide, depthWrite: false
     });
-    const atmo = new THREE.Mesh(new THREE.SphereGeometry(cfg.size * 1.15, 64, 64), atmoMat);
+    const atmoScale = name === 'Venus' ? 1.08 : 1.15;
+    const atmo = new THREE.Mesh(new THREE.SphereGeometry(cfg.size * atmoScale, 64, 64), atmoMat);
     atmo.castShadow = false; atmo.receiveShadow = false;
     planet.add(atmo);
   }
@@ -1394,7 +1425,7 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.65;
+    renderer.toneMappingExposure = 0.80;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1407,7 +1438,7 @@ export default function SolarSystemPhotorealistic() {
     R.renderer = renderer;
 
     // Luz principal do Sol — preset NASA Eyes (decay suave)
-    const sunLight = new THREE.PointLight(0xFFF4E0, 3800, 0, 1.2);
+    const sunLight = new THREE.PointLight(0xFFF4E0, 4500, 0, 1.2);
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(2048, 2048);
@@ -1417,7 +1448,7 @@ export default function SolarSystemPhotorealistic() {
     sunLight.shadow.radius = 4;
     solarGroup.add(sunLight);
     // Fill: suficiente para ver a parte de trás dos planetas (não perder no escuro)
-    const ambientFill = new THREE.AmbientLight(0x8899bb, 0.22);
+    const ambientFill = new THREE.AmbientLight(0x8899bb, 0.15);
     scene.add(ambientFill);
     const hemilight = new THREE.HemisphereLight(0x6688cc, 0x1a1020, 0.28);
     scene.add(hemilight);
@@ -1442,7 +1473,7 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
     // Bloom — preset NASA Eyes: só o Sol brilha (threshold alto)
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.25, 0.6, 0.92);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.35, 0.5, 0.88);
     composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
 
@@ -1585,44 +1616,18 @@ export default function SolarSystemPhotorealistic() {
       if (!R.moons) R.moons = [];
       R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: a7YOffset, bobAmp: 0.08, speed: 0.25 });
 
-      // Foco inicial na Aurora (cinemático curto)
-      const auroraWorld = new THREE.Vector3();
-      a7Group.getWorldPosition(auroraWorld);
+      // Intro suave — overview do sistema solar, sem travar controles
       if (!R.introStarted) {
         R.introStarted = true;
-        // controls.enabled = false;
-        R.isAnimatingFocus = false;
-        const safetyTimeout = setTimeout(() => {
-          controls.enabled = true;
-          R.isAnimatingFocus = false;
-          R.initialZoomDone = true;
-        }, 8000);
-        setTimeout(() => {
-          const target = new THREE.Vector3();
-          a7Group.getWorldPosition(target);
-          const camPos = target.clone().add(new THREE.Vector3(0, 4, 12));
-          const camTween = gsap.to(camera.position, {
-            x: camPos.x, y: camPos.y, z: camPos.z,
-            duration: 3.0, ease: 'power2.inOut',
-            onComplete: () => {
-              clearTimeout(safetyTimeout);
-              controls.enabled = true;
-              R.isAnimatingFocus = false;
-              R.initialZoomDone = true;
-              controls.target.copy(target);
-              controls.update();
-              if (!R.auroraPanelShown && R.latestSetAuroraPanelOpen) {
-                R.auroraPanelShown = true;
-                R.latestSetAuroraPanelOpen(true);
-              }
-            }
-          });
-          const targetTween = gsap.to(controls.target, {
-            x: target.x, y: target.y, z: target.z,
-            duration: 3.0, ease: 'power2.inOut'
-          });
-          R.focusTweens = [camTween, targetTween];
-        }, 1200);
+        R.initialZoomDone = true;
+        controls.enabled = true;
+        // Câmera começa afastada e faz zoom suave para visão geral
+        camera.position.set(0, 80, 160);
+        controls.target.set(0, 0, 0);
+        gsap.to(camera.position, {
+          x: 0, y: 30, z: 80,
+          duration: 4.0, ease: 'power2.out'
+        });
       }
 
       // Carrega modelo GLB da Aurora (visual original)
@@ -1728,7 +1733,7 @@ export default function SolarSystemPhotorealistic() {
       if (R.focusTweens?.length) {
         R.focusTweens.forEach(t => t.kill());
       }
-      R.isAnimatingFocus = false;
+      R.isAnimatingFocus = true;
       R.hoverMesh = null;
 
       const camTween = gsap.to(camera.position, {
