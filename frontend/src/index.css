@@ -85,7 +85,7 @@
     overflow: hidden;
   }
 
-  /* Fundo preto em toda a área do app — evita branco no Netlify / Emergent iframe */
+  /* Fundo preto em toda a área do app — evita branco no Produção / Emergent iframe */
   #root,
   #root > div,
   main,

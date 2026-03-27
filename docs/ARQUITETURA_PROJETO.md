@@ -1,6 +1,6 @@
 # Arquitetura do projeto Planetas
 
-Visão geral da estrutura de pastas e dos principais arquivos do **Sistema Solar 3D** (frontend React + Three.js, backend opcional, deploy Netlify).
+Visão geral da estrutura de pastas e dos principais arquivos do **Sistema Solar 3D** (frontend React + Three.js, backend opcional, deploy Produção).
 
 ---
 
@@ -13,7 +13,7 @@ Planetas/
 ├── .gitignore
 ├── README.md
 ├── package.json                 # Scripts/workspace raiz (se houver)
-├── netlify.toml                 # Build e publish do Netlify
+├── Produção.toml                 # Build e publish do Produção
 ├── deploy.ps1                   # Script de deploy
 ├── copy-textures-from-backend.ps1
 ├── backend/                     # API opcional (Python)
@@ -31,7 +31,7 @@ Planetas/
 
 ## Backend (`backend/`)
 
-API em Python (opcional; no Netlify não roda — o frontend usa texturas em `public/`).
+API em Python (opcional; no Produção não roda — o frontend usa texturas em `public/`).
 
 | Caminho | Descrição |
 |--------|-----------|
@@ -92,7 +92,7 @@ frontend/
 ├── .env / .env.example
 ├── README.md
 ├── EMERGENT_ALIGNMENT.md
-└── NETLIFY_IGUAL_EMERGENT.md
+└── Produção_IGUAL_EMERGENT.md
 ```
 
 ---
@@ -167,7 +167,7 @@ frontend/
 | `NASA_3D_MODELOS_LINKS.md` | Links para modelos 3D NASA (Parker, Aurora 7, etc.) |
 | `BRIEF_CLAUDE_FUNDO_AURORA_JASON_LUAS_SOL.md` | Brief de fundo, Aurora, Jason, luas, Sol |
 | `FUNDO_E_APARENCIA_SITE.md` | Fundo e aparência do site |
-| `NETLIFY_E_CORES_REFERENCIA.md` | Netlify e cores de referência |
+| `Produção_E_CORES_REFERENCIA.md` | Produção e cores de referência |
 
 ---
 
@@ -184,7 +184,7 @@ frontend/
 | Caminho | Descrição |
 |--------|-----------|
 | `frontend/build/` | Saída do `npm run build` / `yarn build` (não versionado; gerado no CI) |
-| `netlify.toml` | Comando de build e pasta de publish para o Netlify |
+| `Produção.toml` | Comando de build e pasta de publish para o Produção |
 | `frontend/.env` | Variáveis (ex.: `REACT_APP_BACKEND_URL`); não versionar segredos |
 
 ---
@@ -207,4 +207,4 @@ frontend/
 2. Em paralelo: **nebula_overlay.png** (camada 2) e **milky_way_band.png** (camada 4); se não existirem, as camadas ficam vazias.
 3. Camada 3 é sempre **partículas (points)** geradas no código.
 
-Todos os arquivos de textura são servidos a partir de **frontend/public/** no build; no Netlify não há backend, então tudo vem de `public/`.
+Todos os arquivos de textura são servidos a partir de **frontend/public/** no build; no Produção não há backend, então tudo vem de `public/`.

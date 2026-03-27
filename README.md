@@ -36,7 +36,7 @@ Simulação interativa 3D do Sistema Solar com metáfora ERP/APIs, construída c
 ## 🌐 Ver online
 
 - **Local (no seu PC):** depois de rodar `yarn start` no frontend, acesse **[http://localhost:3000](http://localhost:3000)**.
-- **Produção:** o site está no **Netlify**. Toda vez que você publica (ver abaixo), o Netlify atualiza sozinho em 1–2 minutos.
+- **Produção:** o site está no **Produção**. Toda vez que você publica (ver abaixo), o Produção atualiza sozinho em 1–2 minutos.
 
 ---
 
@@ -57,11 +57,11 @@ Para colocar suas alterações no ar:
 
 3. (Opcional) Se quiser uma mensagem de commit: `.\deploy.ps1 "Descrição da alteração"`.
 
-O script envia tudo para o GitHub; o **Netlify faz o deploy automaticamente** em seguida. Não precisa clicar em nada no Netlify — só dar push.
+O script envia tudo para o GitHub; o **Produção faz o deploy automaticamente** em seguida. Não precisa clicar em nada no Produção — só dar push.
 
 **Resumo:** você altera o código aqui → roda `npm run deploy` → o site na nuvem atualiza sozinho.
 
-### Reproduzir todos os detalhes (Via Láctea, fundo estelar) no Netlify
+### Reproduzir todos os detalhes (Via Láctea, fundo estelar) no Produção
 
 O código já está no GitHub; no deploy, texturas que vêm de sites externos (ex.: Solar System Scope) podem ser bloqueadas por CORS e o fundo fica só escuro. Para o **fundo com Via Láctea** aparecer igual ao local:
 
@@ -71,7 +71,7 @@ O código já está no GitHub; no deploy, texturas que vêm de sites externos (e
 
 Assim a textura é servida pelo próprio site e não depende de CORS. Instruções detalhadas: **`frontend/public/textures/README.md`**.
 
-Não é preciso mudar de host (Vercel, etc.): o Netlify consegue reproduzir tudo; o que importa é ter essa textura no repositório quando o externo não carrega.
+Não é preciso mudar de host (Vercel, etc.): o Produção consegue reproduzir tudo; o que importa é ter essa textura no repositório quando o externo não carrega.
 
 ---
 

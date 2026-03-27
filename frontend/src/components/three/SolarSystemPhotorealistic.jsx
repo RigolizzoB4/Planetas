@@ -223,9 +223,9 @@ const TEX = {
 };
 const PARKER_SOLAR_PROBE_GLB = `${NASA_3D_BASE}/3D%20Models/Parker%20Solar%20Probe/Parker%20Solar%20Probe.glb`;
 const ATLAS_7_AURORA_7_GLB = `${NASA_3D_BASE}/3D%20Models/Atlas%207%20(Aurora%207)/Atlas%207%20(Aurora%207).glb`;
-// Base URL para assets: no Netlify e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
+// Base URL para assets: no Produção e localmente. PUBLIC_URL é definido no build (ex: '' ou '/Planetas').
 const getBaseUrl = () => (typeof window !== 'undefined' ? window.location.origin : '') + (process.env.PUBLIC_URL || '');
-// Aurora 7 — caminhos absolutos simples (sem getBaseUrl) para máxima compatibilidade Vercel/Netlify/local
+// Aurora 7 — caminhos absolutos simples (sem getBaseUrl) para máxima compatibilidade Vercel/Produção/local
 const AURORA_7_GLB_ALT = `${process.env.PUBLIC_URL || ''}/models/aurora.glb`;
 const AURORA_7_GLB_LOCAL = `${process.env.PUBLIC_URL || ''}/models/Aurora_7.glb`;
 
@@ -237,7 +237,7 @@ const STARMAP_FALLBACK = `${getBaseUrl()}/textures/galaxy_hd_bg.jpg`;
 const NEBULA_OVERLAY = `${getBaseUrl()}/textures/nebula_overlay.png`;
 const MILKY_WAY_BAND = `${getBaseUrl()}/textures/milky_way_band.png`;
 
-// No Netlify o Solar System Scope bloqueia por CORS. Se as texturas estiverem em public/textures/, o site usa elas (mesma origem = sem CORS).
+// No Produção o Solar System Scope bloqueia por CORS. Se as texturas estiverem em public/textures/, o site usa elas (mesma origem = sem CORS).
 function getLocalTexUrl(sssUrl) {
   if (typeof window === 'undefined') return null;
   const filename = sssUrl.split('/').pop();
@@ -1058,7 +1058,7 @@ function createPlanet(scene, loader, name, cfg, R) {
     const local8k = getLocalTexUrl(TEX[name]);
     const local8kPng = getLocalTexUrlPng(TEX[name]);
     const local2k = getLocalTexUrl(fallback2k);
-    // Sempre tenta local primeiro (Netlify = sem CORS); aceita .jpg ou .png
+    // Sempre tenta local primeiro (Produção = sem CORS); aceita .jpg ou .png
     const tryLocalPng = () => (local8kPng && local8kPng !== local8k) ? loader.load(local8kPng, applyTex, undefined, () => { if (local2k && local2k !== local8k) loader.load(local2k, applyTex, undefined, tryPrimary); else tryPrimary(); }) : (local2k && local2k !== local8k) ? loader.load(local2k, applyTex, undefined, tryPrimary) : tryPrimary();
     if (local8k) {
       loader.load(local8k, applyTex, undefined, tryLocalPng);
@@ -1415,7 +1415,7 @@ export default function SolarSystemPhotorealistic() {
     camera.position.set(0, 60, 140);
     R.camera = camera;
 
-    // Renderer - NASA-grade constraints; alpha: false = fundo opaco preto (evita branco no Netlify)
+    // Renderer - NASA-grade constraints; alpha: false = fundo opaco preto (evita branco no Produção)
     const renderer = new THREE.WebGLRenderer({
       antialias: true, powerPreference: 'high-performance',
       logarithmicDepthBuffer: true, stencil: false,
@@ -1876,7 +1876,7 @@ export default function SolarSystemPhotorealistic() {
       // Hover: desabilitado para não travar navegação do usuário
 
       pushCameraOutOfBodies();
-      // Garantir fundo preto a cada frame (evita branco no Netlify/cache)
+      // Garantir fundo preto a cada frame (evita branco no Produção/cache)
       renderer.setClearColor(0x000000, 1);
       if (scene.background) scene.background.setHex(0x000000);
       composer.render();

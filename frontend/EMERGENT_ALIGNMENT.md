@@ -38,4 +38,4 @@ Este documento descreve o que está **igual** ou **equivalente** ao que você v�
   - Embutir este app via iframe ou embed (URL do build React).
   - Não é necessário “refazer” a cena 3D no Elementor; basta apontar para a URL publicada deste projeto.
 
-**Recomendação:** manter o projeto 3D **todo aqui**. Publicar o build (ex.: Vercel, Netlify, ou o host do Emergent) e no Elementor apenas **incorporar** essa URL. Assim você não refaz a cena e mantém uma única fonte de verdade.
+**Recomendação:** manter o projeto 3D **todo aqui**. Publicar o build (ex.: Vercel, Produção, ou o host do Emergent) e no Elementor apenas **incorporar** essa URL. Assim você não refaz a cena e mantém uma única fonte de verdade.

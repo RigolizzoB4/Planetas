@@ -39,7 +39,7 @@ Assim o repositório **RigolizzoB4/Planetas** fica com a última versão.
 
 ---
 
-## 4. Configurar o build (igual ao Netlify)
+## 4. Configurar o build (igual ao Produção)
 
 Na tela de configuração do projeto:
 

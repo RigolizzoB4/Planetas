@@ -8,7 +8,7 @@ Use este documento como referência única para implementar as melhorias no proj
 
 | # | Objetivo | Descrição |
 |---|----------|-----------|
-| 1 | **Fundo preto estrelado funcionar** | Garantir que o céu seja preto com estrelas visíveis (Via Láctea + pontos procedurais). Hoje pode aparecer branco no Netlify; corrigir carregamento/fallback e garantir que a cena e o canvas usem fundo escuro com estrelas. |
+| 1 | **Fundo preto estrelado funcionar** | Garantir que o céu seja preto com estrelas visíveis (Via Láctea + pontos procedurais). Hoje pode aparecer branco no Produção; corrigir carregamento/fallback e garantir que a cena e o canvas usem fundo escuro com estrelas. |
 | 2 | **Olho de Deus** | Adicionar um **preset de câmera "Olho de Deus"** que ainda não existe no script. Normalmente é vista de cima (eixo Y), centralizada no Sol, mostrando todo o sistema. Incluir no store (cameraPreset), no ControlsPanel (botão) e no useEffect de presets em SolarSystemPhotorealistic. |
 | 3 | **Aurora 7 e Jason-2 funcionando** | **Aurora 7:** existe no store (sidebar) mas não tem mesh 3D. Adicionar "Aurora 7" como objeto 3D na cena (satélite/nave), com órbita e tracejado como os outros. **Jason-2:** reativar o estilo "Jason-2" (cilindro + antena + painéis) e criar um objeto nomeado "Jason-2" na cena, com órbita e tracejado. Alinhar lista 3D (array SATELLITES) ao store (incluir Aurora 7 e Jason-2). |
 | 4 | **Satélites e Aurora como no original** | Órbitas tracejadas para todos os satélites (incluindo Aurora 7 e Jason-2); manter ou restaurar anel tracejado e pontilhado já existente para a órbita dos satélites. |
@@ -33,7 +33,7 @@ Use este documento como referência única para implementar as melhorias no proj
 - **Cena e renderer:** `scene.background = new THREE.Color('#05070B')`, `renderer.setClearColor(0x05070B, 1)`, `renderer.domElement.style.backgroundColor = '#05070B'`.
 - **CSS/HTML:** Em `frontend/src/index.css` e `frontend/public/index.html` o fundo também é forçado para `#05070B` para evitar branco.
 
-**O que fazer:** Garantir que, mesmo quando a textura da Via Láctea falhar (ex.: CORS no Netlify), o fundo permaneça preto e as estrelas procedurais (Points) sempre visíveis; evitar qualquer camada ou clear que deixe o fundo branco.
+**O que fazer:** Garantir que, mesmo quando a textura da Via Láctea falhar (ex.: CORS no Produção), o fundo permaneça preto e as estrelas procedurais (Points) sempre visíveis; evitar qualquer camada ou clear que deixe o fundo branco.
 
 ---
 
@@ -114,7 +114,7 @@ Objetivo: luas claramente visíveis na cena, sem exagero.
 
 **O que fazer:** Garantir logo sempre visível:
 - Colocar `logo_b4.png` em `frontend/public/textures/` ou `frontend/public/` (ex.: `public/logo_b4.png`).
-- No carregamento do logo, usar como fallback a URL pública: `${window.location.origin}/textures/logo_b4.png` ou `/logo_b4.png` (conforme onde o arquivo estiver), quando `!API` ou quando o load da API falhar. Assim o Sol terá o logo no centro mesmo sem backend (ex.: Netlify).
+- No carregamento do logo, usar como fallback a URL pública: `${window.location.origin}/textures/logo_b4.png` ou `/logo_b4.png` (conforme onde o arquivo estiver), quando `!API` ou quando o load da API falhar. Assim o Sol terá o logo no centro mesmo sem backend (ex.: Produção).
 
 ---
 

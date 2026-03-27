@@ -1,6 +1,6 @@
 # Análise: configuração do plano de fundo e aparência do site
 
-Mapeamento de onde o fundo e a aparência são definidos e por que o Netlify pode parecer diferente do repositório.
+Mapeamento de onde o fundo e a aparência são definidos e por que o Produção pode parecer diferente do repositório.
 
 ---
 
@@ -53,8 +53,8 @@ Em `SolarSystemPhotorealistic.jsx`:
 
 ## 4. Texturas e fundo estelar
 
-- **Via Láctea:** ordem de carregamento em `SolarSystemPhotorealistic.jsx`: 1) `${API}/api/textures/2k_stars_milky_way.jpg`, 2) `/textures/2k_stars_milky_way.jpg` (public), 3) Solar System Scope (pode falhar por CORS no Netlify).
-- **Planetas:** texturas do Solar System Scope (e NASA quando aplicável); fallback em `public/textures/` para evitar CORS no Netlify.
+- **Via Láctea:** ordem de carregamento em `SolarSystemPhotorealistic.jsx`: 1) `${API}/api/textures/2k_stars_milky_way.jpg`, 2) `/textures/2k_stars_milky_way.jpg` (public), 3) Solar System Scope (pode falhar por CORS no Produção).
+- **Planetas:** texturas do Solar System Scope (e NASA quando aplicável); fallback em `public/textures/` para evitar CORS no Produção.
 - **CORS:** se as texturas não carregam, os planetas usam cores sólidas de fallback.
 
 ---
@@ -75,16 +75,16 @@ Em `SolarSystemPhotorealistic.jsx`:
 
 ---
 
-## 7. Por que o site pode estar diferente no Netlify
+## 7. Por que o site pode estar diferente no Produção
 
 | Causa | Solução |
 |-------|---------|
-| **A) Cache Netlify/CDN** | Deploys → Trigger deploy → **Clear cache and deploy**. No navegador: Ctrl+Shift+R. |
-| **B) Branch errada** | Netlify → Site settings → Build & deploy → conferir branch de produção (ex.: main). |
+| **A) Cache Produção/CDN** | Deploys → Trigger deploy → **Clear cache and deploy**. No navegador: Ctrl+Shift+R. |
+| **B) Branch errada** | Produção → Site settings → Build & deploy → conferir branch de produção (ex.: main). |
 | **C) Build falhando** | Ver logs em Deploys. Build: `cd frontend && npm install --legacy-peer-deps && npm run build`. |
 | **D) Scripts Emergent** | `index.html` carrega emergent-main.js, etc.; podem alterar estilos em iframe. |
 | **E) Texturas (CORS)** | Colocar texturas em `frontend/public/textures/` ou rodar `.\copy-textures-from-backend.ps1`. |
-| **F) Variáveis de ambiente** | Netlify → Environment variables: `REACT_APP_BACKEND_URL`, `REACT_APP_START_VIEW` se usadas. |
+| **F) Variáveis de ambiente** | Produção → Environment variables: `REACT_APP_BACKEND_URL`, `REACT_APP_START_VIEW` se usadas. |
 
 ---
 
@@ -98,5 +98,5 @@ Em `SolarSystemPhotorealistic.jsx`:
 | Bloom do Sol            | `SolarSystemPhotorealistic.jsx` (UnrealBloomPass) |
 | Fontes                  | `frontend/src/index.css` (imports Google Fonts) |
 | Tema Tailwind            | `frontend/tailwind.config.js` |
-| Build e deploy           | `netlify.toml` (raiz do repo) |
+| Build e deploy           | `Produção.toml` (raiz do repo) |
 | HTML base                | `frontend/public/index.html` |
