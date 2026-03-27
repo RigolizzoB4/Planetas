@@ -1621,50 +1621,80 @@ export default function SolarSystemPhotorealistic() {
       a7DracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
       const a7Loader = new GLTFLoader();
       a7Loader.setDRACOLoader(a7DracoLoader);
-      a7Loader.load(
-        AURORA_7_GLB_ALT,
-        (gltf) => {
-          const model = gltf.scene;
-          let meshCount = 0;
-          model.traverse(n => { if (n.isMesh) meshCount++; });
-          if (meshCount === 0) return;
+      
+      // Fallback chain: aurora.glb (local) → Aurora_7.glb (local) → NASA GitHub
+      const loadAurora7 = (urls, index = 0) => {
+        if (index >= urls.length) {
+          console.warn('Aurora 7 não carregou de nenhuma URL');
+          return;
+        }
+        
+        console.log(`[Aurora 7] Tentando carregar de: ${urls[index]}`);
+        
+        a7Loader.load(
+          urls[index],
+          (gltf) => {
+            const model = gltf.scene;
+            let meshCount = 0;
+            model.traverse(n => { if (n.isMesh) meshCount++; });
+            if (meshCount === 0) {
+              console.warn(`[Aurora 7] Arquivo de ${urls[index]} não contém meshes, tentando próxima URL`);
+              loadAurora7(urls, index + 1);
+              return;
+            }
 
-          const b = new THREE.Box3().setFromObject(model);
-          const md = Math.max(...b.getSize(new THREE.Vector3()).toArray()) || 1;
-          model.position.sub(b.getCenter(new THREE.Vector3()));
-          model.scale.setScalar(1.0 / md);
+            const b = new THREE.Box3().setFromObject(model);
+            const md = Math.max(...b.getSize(new THREE.Vector3()).toArray()) || 1;
+            model.position.sub(b.getCenter(new THREE.Vector3()));
+            model.scale.setScalar(1.0 / md);
 
-          model.traverse(n => {
-            if (!n.isMesh) return;
-            n.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
-            n.castShadow = true;
-            n.receiveShadow = true;
-            const mats = Array.isArray(n.material) ? n.material : [n.material];
-            mats.forEach((mat, i) => {
-              if (!mat) return;
-              if (mat.isMeshStandardMaterial) {
-                mat.emissiveIntensity = Math.max(mat.emissiveIntensity || 0, 0.15);
-                mat.needsUpdate = true;
-                return;
-              }
-              const converted = new THREE.MeshStandardMaterial({
-                map: mat.map || null,
-                color: mat.map ? 0xffffff : 0xd8dde0,
-                metalness: 0.65,
-                roughness: 0.28,
-                emissive: new THREE.Color(0x141414),
-                emissiveIntensity: 0.12
+            model.traverse(n => {
+              if (!n.isMesh) return;
+              n.userData = { clickable: true, name: 'Aurora 7', moduleName: 'Nave B4 ERD-FX' };
+              n.castShadow = true;
+              n.receiveShadow = true;
+              const mats = Array.isArray(n.material) ? n.material : [n.material];
+              mats.forEach((mat, i) => {
+                if (!mat) return;
+                if (mat.isMeshStandardMaterial) {
+                  mat.emissiveIntensity = Math.max(mat.emissiveIntensity || 0, 0.15);
+                  mat.needsUpdate = true;
+                  return;
+                }
+                const converted = new THREE.MeshStandardMaterial({
+                  map: mat.map || null,
+                  color: mat.map ? 0xffffff : 0xd8dde0,
+                  metalness: 0.65,
+                  roughness: 0.28,
+                  emissive: new THREE.Color(0x141414),
+                  emissiveIntensity: 0.12
+                });
+                if (Array.isArray(n.material)) n.material[i] = converted; else n.material = converted;
               });
-              if (Array.isArray(n.material)) n.material[i] = converted; else n.material = converted;
             });
-          });
 
-          a7Group.add(model);
-          if (R.auroraFallbackBody) R.auroraFallbackBody.visible = false;
-        },
-        undefined,
-        (err) => { console.error('Aurora 7 load error:', err); }
-      );
+            a7Group.add(model);
+            if (R.auroraFallbackBody) R.auroraFallbackBody.visible = false;
+            console.log(`[Aurora 7] ✓ Carregada com sucesso de: ${urls[index]}`);
+          },
+          undefined,
+          (err) => {
+            console.warn(`[Aurora 7] Falha ao carregar de ${urls[index]}:`, err.message || err);
+            loadAurora7(urls, index + 1);
+          }
+        );
+      };
+      
+      // URLs em ordem de prioridade:
+      // 1. aurora.glb (arquivo que existe no Git e no Vercel)
+      // 2. Aurora_7.glb (caso seja adicionado no futuro)
+      // 3. Modelo NASA (GitHub)
+      const aurora7Urls = [
+        AURORA_7_GLB_ALT,      // /models/aurora.glb
+        AURORA_7_GLB_LOCAL,    // /models/Aurora_7.glb
+        ATLAS_7_AURORA_7_GLB   // NASA GitHub
+      ];
+      loadAurora7(aurora7Urls);
     }
 
     // Raycaster — hover: só outline + pointer (não move câmera); clique: popup + approachObject
