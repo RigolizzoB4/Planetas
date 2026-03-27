@@ -1108,11 +1108,41 @@ function createPlanet(scene, loader, name, cfg, R) {
       alphaTest: 0.05 // Ajuda a manter a nitidez da textura de transparência
     });
     if (style === 'saturn') {
-      const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
+      const applyRing = (t) => { 
+        t.colorSpace = THREE.SRGBColorSpace; 
+        ringMat.map = t; 
+        ringMat.alphaMap = t; 
+        ringMat.color.setHex(0xffffff);
+        ringMat.needsUpdate = true; 
+      };
+
+      // Fallback Procedural: Gera anéis via código se a imagem falhar
+      const generateProceduralRings = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 1024; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        const grad = ctx.createLinearGradient(0, 0, 1024, 0);
+        // Cores de Saturno: tons de bege, marrom e cinza com transparências variadas
+        grad.addColorStop(0.0, 'rgba(0,0,0,0)');
+        grad.addColorStop(0.1, 'rgba(201,184,150,0.6)');
+        grad.addColorStop(0.3, 'rgba(180,160,130,0.8)');
+        grad.addColorStop(0.45, 'rgba(0,0,0,0)'); // Divisão de Cassini
+        grad.addColorStop(0.55, 'rgba(160,140,110,0.7)');
+        grad.addColorStop(0.8, 'rgba(140,120,100,0.5)');
+        grad.addColorStop(1.0, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, 1024, 64);
+        const tex = new THREE.CanvasTexture(canvas);
+        applyRing(tex);
+      };
+
       const ring2k = TEX.SaturnRing.replace(/8k_/g, '2k_');
-      const tryRingRemote = () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing));
+      const tryRingRemote = () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing, undefined, generateProceduralRings));
       const tryRingLocal2k = () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, tryRingRemote);
       const tryRingLocalPng = () => { const url = getLocalTexUrlPng(TEX.SaturnRing); if (url) loader.load(url, applyRing, undefined, tryRingLocal2k); else tryRingLocal2k(); };
+      
+      // Inicia com procedural para garantir visibilidade imediata, depois tenta carregar as texturas reais
+      generateProceduralRings();
       loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, tryRingLocalPng);
     }
     const ring = new THREE.Mesh(ringGeo, ringMat);
