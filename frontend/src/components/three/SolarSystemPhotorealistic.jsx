@@ -1094,11 +1094,13 @@ function createPlanet(scene, loader, name, cfg, R) {
     } else if (style === 'neptune') {
       innerMul = 1.3; outerMul = 1.8; ringColor = 0x5566AA; ringOpacity = 0.12; ringTilt = Math.PI / 2.1;
     } else {
-      innerMul = 1.3; outerMul = 2.5; ringColor = 0xC9B896; ringOpacity = 0.8; ringTilt = Math.PI / 2.5;
+      // Saturn Rings — More visible and dense
+      innerMul = 1.3; outerMul = 2.5; ringColor = 0xFFFFFF; ringOpacity = 0.95; ringTilt = Math.PI / 2.5;
     }
     const ringGeo = new THREE.RingGeometry(cfg.size * innerMul, cfg.size * outerMul, 128);
     const ringMat = new THREE.MeshStandardMaterial({
-      color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: ringOpacity, roughness: 0.8, metalness: 0.0
+      color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: ringOpacity, roughness: 0.4, metalness: 0.1,
+      emissive: new THREE.Color(0x222222), emissiveIntensity: 0.05
     });
     if (style === 'saturn') {
       const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
@@ -1173,7 +1175,7 @@ function createPlanet(scene, loader, name, cfg, R) {
   scene.add(group);
 }
 
-function createNaturalMoons(R) {
+function createNaturalMoons(R, loader) {
   if (!R.moons) R.moons = [];
 
   Object.entries(NATURAL_MOONS).forEach(([planetName, moons]) => {
@@ -1182,12 +1184,39 @@ function createNaturalMoons(R) {
 
     moons.forEach((moonCfg, i) => {
       const mat = new THREE.MeshStandardMaterial({
-        color: moonCfg.color,
-        roughness: moonCfg.rough,
+        color: 0xffffff, // Base white to let texture dominate
+        roughness: moonCfg.rough || 0.8,
         metalness: 0.05,
-        emissive: new THREE.Color(moonCfg.color),
-        emissiveIntensity: 0.06
+        emissive: new THREE.Color(0x111111),
+        emissiveIntensity: 0.02
       });
+
+      // Photorealistic Moon Textures (NASA/SSS)
+      const moonTexMap = {
+        'Lua': '8k_moon.jpg',
+        'Io': '2k_jupiter_io.jpg',
+        'Europa': '2k_jupiter_europa.jpg',
+        'Ganymede': '2k_jupiter_ganymede.jpg',
+        'Callisto': '2k_jupiter_callisto.jpg',
+        'Titan': '2k_saturn_titan.jpg',
+        'Enceladus': '2k_saturn_enceladus.jpg',
+        'Mimas': '2k_saturn_mimas.jpg',
+        'Rhea': '2k_saturn_rhea.jpg'
+      };
+
+      if (moonTexMap[moonCfg.name]) {
+        const moonTexUrl = `${SOLAR_SCOPE_8K}${moonTexMap[moonCfg.name]}`;
+        const applyMoon = (t) => { 
+          t.colorSpace = THREE.SRGBColorSpace; 
+          mat.map = t; 
+          mat.color.setHex(0xffffff); // Ensure white base for texture
+          mat.needsUpdate = true; 
+        };
+        loader.load(getLocalTexUrl(moonTexUrl) || moonTexUrl, applyMoon, undefined, () => loader.load(moonTexUrl, applyMoon));
+      } else {
+        // Fallback color for other moons if no specific texture
+        mat.color.setHex(moonCfg.color);
+      }
 
       const moonMesh = new THREE.Mesh(
         new THREE.SphereGeometry(moonCfg.size, 32, 32),
@@ -1573,7 +1602,7 @@ export default function SolarSystemPhotorealistic() {
     createSatellites(solarGroup, loader, R);
     Object.entries(PLANETS).forEach(([name, cfg]) => createPlanet(solarGroup, loader, name, cfg, R));
     createAsteroids(solarGroup, R);
-    createNaturalMoons(R);
+    createNaturalMoons(R, loader);
     createParkerSolarProbe(solarGroup, R);
     // ===== AURORA 7 — visual final (sem marcadores de debug) =====
     {
