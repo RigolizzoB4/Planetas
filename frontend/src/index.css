@@ -267,8 +267,6 @@ canvas {
   transition: opacity 1.2s cubic-bezier(.4,0,.2,1), background 1.2s ease;
 }
 .cin-overlay--opaque { background: #000; pointer-events: auto; }
-.cin-overlay--transparent { background: transparent; }
-.cin-overlay--hide { opacity: 0; }
 
 .cin-stars { position: absolute; inset: 0; overflow: hidden; }
 .cin-star {
@@ -304,99 +302,3 @@ canvas {
 @keyframes cin-pulse { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
 @keyframes cin-spin { to { transform: rotate(360deg); } }
 
-/* Subtitle (during cinematic fly-through) */
-.cin-subtitle {
-  position: absolute; bottom: 12%; left: 0; right: 0; text-align: center;
-  pointer-events: none;
-  animation: cin-sub-in 0.8s ease-out forwards;
-}
-.cin-subtitle span {
-  font-family: 'Exo 2', sans-serif; font-size: 1.6rem; font-weight: 500;
-  letter-spacing: 0.15em; color: #EDEDEA;
-  text-shadow: 0 0 30px rgba(243,174,62,0.3), 0 2px 8px rgba(0,0,0,0.8);
-  padding: 0.5rem 2rem;
-  background: rgba(0,0,0,0.3); border-radius: 8px;
-  backdrop-filter: blur(4px);
-}
-@keyframes cin-sub-in {
-  0% { opacity: 0; transform: translateY(15px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* Cockpit panel overlay */
-.cin-cockpit-panel {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  pointer-events: auto;
-  animation: cin-panel-in 1s ease-out forwards;
-}
-@keyframes cin-panel-in {
-  0% { opacity: 0; transform: scale(0.92); }
-  100% { opacity: 1; transform: scale(1); }
-}
-.cin-panel__inner {
-  max-width: 460px; width: 90%;
-  background: rgba(8,14,22,0.75);
-  border: 1px solid rgba(243,174,62,0.25);
-  border-radius: 12px;
-  padding: 2.2rem 2rem;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 0 60px rgba(26,90,154,0.15), 0 0 30px rgba(243,174,62,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
-  display: flex; flex-direction: column; align-items: center; gap: 0;
-  text-align: center;
-}
-.cin-panel__header {
-  display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.8rem;
-}
-.cin-panel__b4 {
-  font-family: 'Exo 2', sans-serif; font-size: 2rem; font-weight: 700;
-  color: #F3AE3E; letter-spacing: 0.06em;
-  text-shadow: 0 0 20px rgba(243,174,62,0.3);
-}
-.cin-panel__title {
-  font-family: 'Exo 2', sans-serif; font-size: 1.05rem; font-weight: 400;
-  color: #EDEDEA; letter-spacing: 0.1em;
-}
-.cin-panel__divider {
-  width: 80%; height: 1px; margin: 0.5rem 0 1rem;
-  background: linear-gradient(90deg, transparent, rgba(243,174,62,0.3), transparent);
-}
-.cin-panel__desc {
-  font-family: 'Space Grotesk', sans-serif; font-size: 0.85rem;
-  color: #B4B4B4; line-height: 1.6; margin-bottom: 1rem;
-}
-.cin-panel__features {
-  list-style: none; padding: 0; margin: 0 0 1.5rem;
-  display: flex; flex-direction: column; gap: 0.4rem;
-}
-.cin-panel__features li {
-  font-family: 'Space Grotesk', sans-serif; font-size: 0.78rem;
-  color: #818181; letter-spacing: 0.04em;
-}
-.cin-panel__features li::before {
-  content: '▸ '; color: #F3AE3E80;
-}
-.cin-panel__btn {
-  font-family: 'Exo 2', sans-serif; font-size: 1.05rem; font-weight: 500;
-  letter-spacing: 0.22em; text-transform: uppercase;
-  color: #05070B; background: linear-gradient(135deg, #F3AE3E 0%, #e09520 100%);
-  border: none; padding: 0.75rem 3rem; border-radius: 9999px; cursor: pointer;
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-  box-shadow: 0 0 30px rgba(243,174,62,0.3), 0 4px 20px rgba(0,0,0,0.5);
-}
-.cin-panel__btn:hover {
-  transform: scale(1.06);
-  box-shadow: 0 0 50px rgba(243,174,62,0.5), 0 4px 30px rgba(0,0,0,0.5);
-}
-.cin-panel__hint {
-  font-family: 'Space Grotesk', sans-serif; font-size: 0.65rem;
-  color: #81818160; margin-top: 0.6rem; letter-spacing: 0.08em;
-  animation: cin-pulse 2s ease-in-out infinite;
-}
-
-@media (max-width: 640px) {
-  .cin-panel__inner { padding: 1.5rem 1.2rem; }
-  .cin-panel__b4 { font-size: 1.5rem; }
-  .cin-panel__title { font-size: 0.85rem; }
-  .cin-subtitle span { font-size: 1.1rem; }
-}

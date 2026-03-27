@@ -11,8 +11,7 @@ import { useSolarSystemStore } from './store/solarSystemStore';
 
 function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const { fetchObjects, fetchScene, isLoading, error, sidebarOpen, useOfflineFallback, auroraPanelOpen, introPhase, triggerExplore } = useSolarSystemStore();
-  const isFree = introPhase === 'free';
+  const { fetchObjects, fetchScene, isLoading, error, sidebarOpen, useOfflineFallback, auroraPanelOpen } = useSolarSystemStore();
 
   useEffect(() => {
     fetchObjects();
@@ -25,13 +24,6 @@ function App() {
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
-
-  useEffect(() => {
-    if (introPhase !== 'cockpit') return;
-    const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerExplore && triggerExplore(); } };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [introPhase, triggerExplore]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
@@ -54,43 +46,40 @@ function App() {
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-background" style={{ background: '#000000' }}>
-      {/* Cinematic intro overlay */}
-      {!isFree && <CinematicIntro />}
+      <CinematicIntro />
 
-      {isFree && <Header isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} />}
+      <Header isFullscreen={isFullscreen} toggleFullscreen={toggleFullscreen} />
 
-      {isFree && useOfflineFallback && (
+      {useOfflineFallback && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2 rounded-lg text-sm shadow-lg" style={{ background: 'rgba(243, 174, 62, 0.15)', color: '#F3AE3E', border: '1px solid rgba(243, 174, 62, 0.4)' }}>
           <span>Backend indisponível — exibindo dados padrão.</span>
           <button onClick={() => fetchObjects()} className="px-2 py-1 rounded bg-primary/20 hover:bg-primary/30 transition-colors" style={{ color: '#F3AE3E' }}>Tentar novamente</button>
         </div>
       )}
 
-      <main className={`absolute inset-0 transition-all duration-300 ${isFree ? (sidebarOpen ? 'pt-14 pl-72' : 'pt-14 pl-0') : 'pt-0 pl-0'}`} style={{ background: '#000000' }}>
+      <main className={`absolute inset-0 transition-all duration-300 ${sidebarOpen ? 'pt-14 pl-72' : 'pt-14 pl-0'}`} style={{ background: '#000000' }}>
         <div className="w-full h-full" style={{ background: '#000000' }}>
           {!isLoading && <SolarSystemPhotorealistic />}
         </div>
       </main>
 
-      {isFree && <Sidebar />}
-      {isFree && <ControlsPanel />}
-      {isFree && <InfoPopup />}
-      {isFree && auroraPanelOpen && <AuroraPanel />}
+      <Sidebar />
+      <ControlsPanel />
+      <InfoPopup />
+      {auroraPanelOpen && <AuroraPanel />}
 
       <Toaster position="top-right" toastOptions={{ className: 'glass-panel border-border/50' }} />
 
-      {isFree && (
-        <footer className="fixed bottom-0 left-0 right-0 py-2 text-center text-xs pointer-events-none z-10" style={{ color: '#81818180' }}>
-          <span className="px-4 py-1 rounded-full backdrop-blur-sm" style={{ background: '#05070B80' }}>
-            <a href={process.env.REACT_APP_VIEW_ONLINE_URL || (typeof window !== 'undefined' ? window.location.origin : '#')} target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }} title="Abrir a aplicação em produção (imagem online real)">Ver imagem online real</a>
-            {' '}&middot; Texturas:{' '}
-            <a href="https://www.solarsystemscope.com" target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }}>Solar System Scope</a>
-            {' '}&middot;{' '}
-            <a href="https://nasa3d.arc.nasa.gov" target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }}>NASA 3D Resources</a>
-            {' '}&middot; Powered by B4 Group
-          </span>
-        </footer>
-      )}
+      <footer className="fixed bottom-0 left-0 right-0 py-2 text-center text-xs pointer-events-none z-10" style={{ color: '#81818180' }}>
+        <span className="px-4 py-1 rounded-full backdrop-blur-sm" style={{ background: '#05070B80' }}>
+          <a href={process.env.REACT_APP_VIEW_ONLINE_URL || (typeof window !== 'undefined' ? window.location.origin : '#')} target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }} title="Abrir a aplicação em produção (imagem online real)">Ver imagem online real</a>
+          {' '}&middot; Texturas:{' '}
+          <a href="https://www.solarsystemscope.com" target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }}>Solar System Scope</a>
+          {' '}&middot;{' '}
+          <a href="https://nasa3d.arc.nasa.gov" target="_blank" rel="noopener noreferrer" className="hover:underline pointer-events-auto" style={{ color: '#F3AE3E90' }}>NASA 3D Resources</a>
+          {' '}&middot; Powered by B4 Group
+        </span>
+      </footer>
     </div>
   );
 }

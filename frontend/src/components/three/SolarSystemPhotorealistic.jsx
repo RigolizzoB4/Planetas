@@ -1368,195 +1368,6 @@ function createParkerSolarProbe(solarGroup, R) {
   R.parkerGroup = group;
 }
 
-// ==================== INTRO COCKPIT (procedural sci-fi interior) ====================
-function buildIntroCockpit() {
-  const g = new THREE.Group();
-  g.name = 'IntroCockpit';
-  const D = 7, W = 5.5, H = 3.2;
-  const HW = W / 2, HH = H / 2, HD = D / 2;
-
-  // ---- shared materials ----
-  const hullMat = new THREE.MeshStandardMaterial({ color: 0x0a0e16, metalness: 0.92, roughness: 0.18, side: THREE.DoubleSide });
-  const ribMat  = new THREE.MeshStandardMaterial({ color: 0x1c2a3a, metalness: 0.95, roughness: 0.12, emissive: new THREE.Color(0x0d1a2a), emissiveIntensity: 0.3 });
-  const panelMat = new THREE.MeshStandardMaterial({ color: 0x0c1018, metalness: 0.88, roughness: 0.25 });
-  const accentMat = new THREE.MeshBasicMaterial({ color: 0x22aaee, transparent: true, opacity: 0.6 });
-  const warnMat = new THREE.MeshBasicMaterial({ color: 0xF3AE3E, transparent: true, opacity: 0.45 });
-  const screenGlow = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o || 0.35, side: THREE.DoubleSide });
-
-  // ---- hull: floor, ceiling, back wall, side walls ----
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), hullMat);
-  floor.rotation.x = -Math.PI / 2; floor.position.y = -HH; g.add(floor);
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), hullMat);
-  ceil.rotation.x = Math.PI / 2; ceil.position.y = HH; g.add(ceil);
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(W, H), hullMat);
-  back.position.z = HD; g.add(back);
-  [-1, 1].forEach(s => {
-    const sw = new THREE.Mesh(new THREE.PlaneGeometry(D, H), hullMat);
-    sw.rotation.y = -s * Math.PI / 2; sw.position.x = s * HW; g.add(sw);
-  });
-
-  // ---- structural ribs (ceiling + walls) ----
-  const ribGeo = new THREE.BoxGeometry(W + 0.1, 0.08, 0.08);
-  const ribGeoV = new THREE.BoxGeometry(0.07, H, 0.07);
-  for (let i = -2; i <= 2; i++) {
-    const r = new THREE.Mesh(ribGeo, ribMat);
-    r.position.set(0, HH - 0.02, i * 1.2); g.add(r);
-    const rf = new THREE.Mesh(new THREE.BoxGeometry(W + 0.1, 0.08, 0.08), ribMat);
-    rf.position.set(0, -HH + 0.02, i * 1.2); g.add(rf);
-  }
-  [-1, 1].forEach(s => {
-    for (let i = -2; i <= 2; i++) {
-      const rv = new THREE.Mesh(ribGeoV, ribMat);
-      rv.position.set(s * (HW - 0.02), 0, i * 1.2); g.add(rv);
-    }
-  });
-
-  // ---- windshield frame (front opening with struts) ----
-  const strutMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, metalness: 0.95, roughness: 0.1, emissive: new THREE.Color(0x101820), emissiveIntensity: 0.2 });
-  const strutT = 0.1;
-  [[W + 0.2, strutT, strutT, 0, HH, -HD], [W + 0.2, strutT, strutT, 0, -HH, -HD],
-   [strutT, H + 0.1, strutT, -HW, 0, -HD], [strutT, H + 0.1, strutT, HW, 0, -HD],
-   [strutT, H * 1.1, strutT * 1.5, 0, 0, -HD]].forEach(([bw, bh, bd, px, py, pz]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), strutMat);
-    m.position.set(px, py, pz); g.add(m);
-  });
-  [[-HW * 0.5, HH * 0.7, -HD], [HW * 0.5, HH * 0.7, -HD]].forEach(([x, y, z]) => {
-    const diag = new THREE.Mesh(new THREE.BoxGeometry(strutT * 0.8, H * 0.45, strutT * 0.8), strutMat);
-    diag.position.set(x, y, z); diag.rotation.z = (x > 0 ? -1 : 1) * 0.35; g.add(diag);
-  });
-
-  // ---- windshield glass (subtle transparent) ----
-  const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0x112233, transparent: true, opacity: 0.08, metalness: 0.1,
-    roughness: 0.05, side: THREE.DoubleSide, envMapIntensity: 0.5
-  });
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.3, H - 0.3), glassMat);
-  glass.position.set(0, 0, -HD + 0.02); g.add(glass);
-
-  // ---- dashboard (multi-level angled console) ----
-  const dashShape = new THREE.Shape();
-  dashShape.moveTo(-HW * 0.85, -0.05);
-  dashShape.lineTo(HW * 0.85, -0.05);
-  dashShape.lineTo(HW * 0.85, 0.05);
-  dashShape.lineTo(-HW * 0.85, 0.05);
-  dashShape.closePath();
-  const dashMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, metalness: 0.92, roughness: 0.12, emissive: new THREE.Color(0x080d15), emissiveIntensity: 0.15 });
-
-  const dashTop = new THREE.Mesh(new THREE.BoxGeometry(W * 0.85, 0.12, 1.0), dashMat);
-  dashTop.position.set(0, -0.1, -HD + 0.7); dashTop.rotation.x = -0.3; g.add(dashTop);
-  const dashLow = new THREE.Mesh(new THREE.BoxGeometry(W * 0.85, 0.1, 0.5), dashMat);
-  dashLow.position.set(0, -0.55, -HD + 0.55); dashLow.rotation.x = -0.5; g.add(dashLow);
-
-  // ---- main screens on dashboard ----
-  const mainScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.7), screenGlow(0x0088cc, 0.25));
-  mainScreen.position.set(0, 0.02, -HD + 0.18); g.add(mainScreen);
-  const screenBorder = new THREE.Mesh(new THREE.RingGeometry(0.0, 0.02, 4, 1), screenGlow(0x22aaee, 0.5));
-
-  [-1, 1].forEach(s => {
-    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.55), screenGlow(0x0066aa, 0.2));
-    side.position.set(s * 1.3, -0.02, -HD + 0.2); side.rotation.y = s * 0.2; g.add(side);
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.59, 0.02), ribMat);
-    frame.position.copy(side.position); frame.position.z += 0.01; frame.rotation.y = s * 0.2; g.add(frame);
-  });
-
-  // ---- screen scan lines (subtle horizontal lines on main screen) ----
-  for (let i = 0; i < 8; i++) {
-    const sl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.008), screenGlow(0x44ccff, 0.15));
-    sl.position.set(0, -0.28 + i * 0.085, -HD + 0.175); g.add(sl);
-  }
-
-  // ---- HUD holographic panel (for the interactive cockpit overlay) ----
-  const holoMat = new THREE.MeshBasicMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
-  const holo = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.7), holoMat);
-  holo.position.set(0, 0.25, -0.8); holo.name = 'HoloPanel'; g.add(holo);
-
-  // ---- side consoles (equipment panels on walls) ----
-  [-1, 1].forEach(s => {
-    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.2, 2.0), panelMat);
-    sidePanel.position.set(s * (HW - 0.04), -0.2, 0); g.add(sidePanel);
-    for (let j = 0; j < 5; j++) {
-      const btn = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), screenGlow([0x00ff88, 0xff4444, 0x44aaff, 0xF3AE3E, 0x00ff88][j], 0.7));
-      btn.rotation.y = -s * Math.PI / 2;
-      btn.position.set(s * (HW - 0.07), -0.5 + j * 0.3, -0.6 + j * 0.12); g.add(btn);
-    }
-    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.025), accentMat);
-    stripe.rotation.y = -s * Math.PI / 2;
-    stripe.position.set(s * (HW - 0.003), 0.5, 0); g.add(stripe);
-    const stripe2 = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.025), warnMat);
-    stripe2.rotation.y = -s * Math.PI / 2;
-    stripe2.position.set(s * (HW - 0.003), -0.9, 0); g.add(stripe2);
-  });
-
-  // ---- overhead panel ----
-  const overheadPanel = new THREE.Mesh(new THREE.BoxGeometry(W * 0.6, 0.06, 1.5), panelMat);
-  overheadPanel.position.set(0, HH - 0.08, -0.5); g.add(overheadPanel);
-  for (let i = 0; i < 6; i++) {
-    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.04),
-      new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0x00cc66 : (i % 3 === 1 ? 0xcc4444 : 0xccaa22), transparent: true, opacity: 0.8 }));
-    sw.position.set(-0.8 + i * 0.32, HH - 0.04, -0.5); g.add(sw);
-  }
-
-  // ---- pilot seat ----
-  const seatMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.6, roughness: 0.45 });
-  const seatBase = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), seatMat);
-  seatBase.position.set(0, -HH + 0.35, 1.0); g.add(seatBase);
-  const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.0, 0.12), seatMat);
-  seatBack.position.set(0, -HH + 0.9, 1.35); seatBack.rotation.x = 0.12; g.add(seatBack);
-  const seatHead = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.1), seatMat);
-  seatHead.position.set(0, -HH + 1.5, 1.38); g.add(seatHead);
-  [-1, 1].forEach(s => {
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.5), seatMat);
-    arm.position.set(s * 0.38, -HH + 0.52, 1.1); g.add(arm);
-  });
-
-  // ---- floor grating pattern ----
-  const gratingMat = new THREE.MeshBasicMaterial({ color: 0x0a1520, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
-  for (let i = -4; i <= 4; i++) {
-    const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.02, D * 0.95), gratingMat);
-    gl.rotation.x = -Math.PI / 2; gl.position.set(i * 0.55, -HH + 0.005, 0); g.add(gl);
-  }
-  for (let i = -3; i <= 3; i++) {
-    const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.95, 0.02), gratingMat);
-    gl.rotation.x = -Math.PI / 2; gl.position.set(0, -HH + 0.005, i * 0.9); g.add(gl);
-  }
-
-  // ---- accent light strips along ceiling edges ----
-  [-1, 1].forEach(s => {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, D * 0.8),
-      new THREE.MeshBasicMaterial({ color: 0x1188cc, transparent: true, opacity: 0.5 }));
-    strip.position.set(s * (HW - 0.08), HH - 0.04, 0); g.add(strip);
-  });
-  const frontStrip = new THREE.Mesh(new THREE.BoxGeometry(W * 0.7, 0.02, 0.04),
-    new THREE.MeshBasicMaterial({ color: 0x1188cc, transparent: true, opacity: 0.4 }));
-  frontStrip.position.set(0, HH - 0.04, -HD + 0.1); g.add(frontStrip);
-
-  // ---- conduits / pipes along ceiling corners ----
-  [-1, 1].forEach(s => {
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, D * 0.85, 8), ribMat);
-    pipe.rotation.x = Math.PI / 2;
-    pipe.position.set(s * (HW - 0.12), HH - 0.12, 0); g.add(pipe);
-    const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, D * 0.7, 6), ribMat);
-    pipe2.rotation.x = Math.PI / 2;
-    pipe2.position.set(s * (HW - 0.2), HH - 0.18, 0.3); g.add(pipe2);
-  });
-
-  // ---- lighting (dramatic multi-source) ----
-  const mainLight = new THREE.PointLight(0x1a5a9a, 3.0, 14);
-  mainLight.position.set(0, HH - 0.3, 0); g.add(mainLight);
-  const dashLight = new THREE.PointLight(0x0088cc, 1.5, 6);
-  dashLight.position.set(0, 0.1, -HD + 0.5); g.add(dashLight);
-  const ambientWarm = new THREE.PointLight(0xF3AE3E, 0.5, 5);
-  ambientWarm.position.set(0, 0.25, -0.8); g.add(ambientWarm);
-  const backLight = new THREE.PointLight(0x112244, 0.8, 8);
-  backLight.position.set(0, 0, HD - 0.5); g.add(backLight);
-  [-1, 1].forEach(s => {
-    const sideLight = new THREE.PointLight(0x0a3355, 0.6, 5);
-    sideLight.position.set(s * HW * 0.7, -0.3, 0); g.add(sideLight);
-  });
-
-  return { group: g, DEPTH: D, WIDTH: W, HEIGHT: H };
-}
-
 // ==================== COMPONENT ====================
 export default function SolarSystemPhotorealistic() {
   const containerRef = useRef(null);
@@ -1566,11 +1377,11 @@ export default function SolarSystemPhotorealistic() {
     angles: {}, frameId: null, sunMat: null, coronaMat: null, elapsed: 0,
     auroras: [], focusTweens: null, isAnimatingFocus: false, solarGroup: null, outlinePass: null,
     userInteracting: false, initialZoomDone: false, focusTarget: null, hoverMesh: null,
-    introStarted: false, auroraPanelShown: false, aurora7: null,
+    auroraPanelShown: false, aurora7: null,
     auroraEngineGlow: null, auroraEngineHalo: null, auroraTrail: [], auroraFallbackBody: null
   });
 
-  const { objects, setSelectedObject, setAuroraPanelOpen, setSceneReady, setIntroPhase, setIntroSubtitle, setTriggerExplore, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
+  const { objects, setSelectedObject, setAuroraPanelOpen, setSceneReady, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
   refs.current.latestObjects = objects;
   refs.current.latestSetSelectedObject = setSelectedObject;
   refs.current.latestSetAuroraPanelOpen = setAuroraPanelOpen;
@@ -1583,7 +1394,7 @@ export default function SolarSystemPhotorealistic() {
     R.planets = {}; R.satellites = []; R.moons = []; R.sunLayers = {}; R.angles = {}; R.elapsed = 0; R.auroras = [];
     R.focusTweens = null; R.isAnimatingFocus = false; R.solarGroup = null; R.dustLayer = null; R.outlinePass = null; R.userInteracting = false; R.initialZoomDone = false;
     R.parkerGroup = null; R.parkerAngle = 0;
-    R.aurora7 = null; R.introStarted = false; R.auroraPanelShown = false;
+    R.aurora7 = null; R.auroraPanelShown = false;
     R.auroraEngineGlow = null; R.auroraEngineHalo = null; R.auroraTrail = []; R.auroraFallbackBody = null;
     R.comets = null;
     const container = containerRef.current;
@@ -1805,77 +1616,6 @@ export default function SolarSystemPhotorealistic() {
       if (!R.moons) R.moons = [];
       R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: a7YOffset, bobAmp: 0.08, speed: 0.25 });
 
-      // ===== CINEMATIC INTRO — camera flies to Sun, then into Aurora 7 cockpit =====
-      if (!R.introStarted) {
-        if (R.introTimeline) { R.introTimeline.kill(); R.introTimeline = null; }
-        if (R.introLookAt) gsap.killTweensOf(R.introLookAt);
-        gsap.killTweensOf(camera.position);
-        if (R.cockpitGroup && R.cockpitGroup.parent) R.cockpitGroup.parent.remove(R.cockpitGroup);
-
-        R.introStarted = true;
-        R.initialZoomDone = true;
-        controls.enabled = false;
-        R.introActive = true;
-        R.introLookAt = new THREE.Vector3(0, 0, 0);
-
-        const earthPos = new THREE.Vector3();
-        R.planets['Earth'].getWorldPosition(earthPos);
-        const dirToSun = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), earthPos).normalize();
-        const cockpitPos = earthPos.clone().add(dirToSun.clone().multiplyScalar(4.5));
-        cockpitPos.y = 0.2;
-
-        const { group: cockpit, DEPTH: cpD } = buildIntroCockpit();
-        cockpit.position.copy(cockpitPos);
-        cockpit.lookAt(0, 0, 0);
-        cockpit.updateMatrixWorld(true);
-        solarGroup.add(cockpit);
-        R.cockpitGroup = cockpit;
-
-        const toW = (v) => v.clone().applyMatrix4(cockpit.matrixWorld);
-        const seatW = toW(new THREE.Vector3(0, 0.25, cpD * 0.3));
-        const panelW = toW(new THREE.Vector3(0, 0.25, -cpD * 0.2));
-        const entW  = toW(new THREE.Vector3(0, 0.6, -cpD / 2 - 6));
-        const midW  = toW(new THREE.Vector3(0, 0.4, -cpD / 2 - 1.5));
-
-        camera.position.set(0, 120, 300);
-        camera.lookAt(0, 0, 0);
-
-        const tl = gsap.timeline({ paused: true });
-        tl.to(camera.position, { x: 0, y: 4, z: 16, duration: 4, ease: 'power2.inOut' });
-        tl.call(() => setIntroSubtitle('B4 GROUP'), [], '+=0.2');
-        tl.to(camera.position, { x: 6, y: 3, z: 14, duration: 2.2, ease: 'sine.inOut' });
-        tl.call(() => setIntroSubtitle(''), [], '+=0');
-        tl.to(camera.position, { x: entW.x, y: entW.y, z: entW.z, duration: 4.5, ease: 'power2.inOut' });
-        tl.to(R.introLookAt, { x: cockpitPos.x, y: cockpitPos.y, z: cockpitPos.z, duration: 4.5, ease: 'power2.inOut' }, '<');
-        tl.call(() => setIntroSubtitle('Aurora 7 — Nave B4 ERD-FX'), [], '-=3.5');
-        tl.to(camera.position, { x: midW.x, y: midW.y, z: midW.z, duration: 1.8, ease: 'power2.inOut' });
-        tl.to(R.introLookAt, { x: panelW.x, y: panelW.y, z: panelW.z, duration: 1.8, ease: 'power2.inOut' }, '<');
-        tl.call(() => setIntroSubtitle(''));
-        tl.to(camera.position, { x: seatW.x, y: seatW.y, z: seatW.z, duration: 2, ease: 'power2.out' });
-        tl.call(() => setIntroPhase('cockpit'));
-
-        R.introTimeline = tl;
-
-        const exitOverview = new THREE.Vector3(0, 35, 85);
-        R.triggerExit = () => {
-          setIntroPhase('exiting');
-          const ex = gsap.timeline();
-          ex.to(camera.position, { x: entW.x, y: entW.y + 8, z: entW.z, duration: 2, ease: 'power2.inOut' });
-          ex.to(R.introLookAt, { x: 0, y: 0, z: 0, duration: 2, ease: 'power2.inOut' }, '<');
-          ex.to(camera.position, { x: exitOverview.x, y: exitOverview.y, z: exitOverview.z, duration: 3, ease: 'power2.inOut' });
-          ex.call(() => {
-            controls.target.set(0, 0, 0);
-            controls.object.position.copy(camera.position);
-            controls.enabled = true;
-            controls.update();
-            R.introActive = false;
-            cockpit.visible = false;
-            setIntroPhase('free');
-          });
-        };
-        setTriggerExplore(R.triggerExit);
-      }
-
       // Carrega modelo GLB da Aurora (visual original)
       const a7DracoLoader = new DRACOLoader();
       a7DracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -2075,11 +1815,9 @@ export default function SolarSystemPhotorealistic() {
       if (!firstFrameFired) {
         firstFrameFired = true;
         setSceneReady(true);
-        if (R.introTimeline) { setIntroPhase('cinematic'); R.introTimeline.play(); }
       }
-      if (R.introActive && R.introLookAt) camera.lookAt(R.introLookAt);
-      if (!R.introActive) controls.update();
-      if (R.solarGroup && !R.introActive) {
+      controls.update();
+      if (R.solarGroup) {
         R.solarGroup.rotation.y += delta * GLOBAL_ROTATION_SPEED;
       }
       if (R.dustLayer) {
@@ -2116,9 +1854,6 @@ export default function SolarSystemPhotorealistic() {
     animate();
 
     return () => {
-      if (R.introTimeline) { R.introTimeline.kill(); R.introTimeline = null; }
-      gsap.killTweensOf(camera.position);
-      if (R.introLookAt) gsap.killTweensOf(R.introLookAt);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       controls.removeEventListener('start', onControlStart);
@@ -2167,7 +1902,7 @@ export default function SolarSystemPhotorealistic() {
       animId = requestAnimationFrame(update);
       if (isPaused) return;
       const now = performance.now();
-      if (R.introActive) { lastTime = now; return; }
+      
       const dt = (now - lastTime) / 1000;
       lastTime = now;
       Object.entries(PLANETS).forEach(([name, cfg]) => {
