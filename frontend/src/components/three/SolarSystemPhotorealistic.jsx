@@ -1381,7 +1381,7 @@ export default function SolarSystemPhotorealistic() {
     auroraEngineGlow: null, auroraEngineHalo: null, auroraTrail: [], auroraFallbackBody: null
   });
 
-  const { objects, setSelectedObject, setAuroraPanelOpen, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
+  const { objects, setSelectedObject, setAuroraPanelOpen, setSceneReady, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
   refs.current.latestObjects = objects;
   refs.current.latestSetSelectedObject = setSelectedObject;
   refs.current.latestSetAuroraPanelOpen = setAuroraPanelOpen;
@@ -1821,10 +1821,12 @@ export default function SolarSystemPhotorealistic() {
     window.addEventListener('resize', onResize);
 
     // Render loop
+    let firstFrameFired = false;
     const animate = () => {
       R.frameId = requestAnimationFrame(animate);
       const delta = R.clock.getDelta();
       R.elapsed += delta;
+      if (!firstFrameFired) { firstFrameFired = true; setSceneReady(true); }
       controls.update();
       if (R.solarGroup) {
         R.solarGroup.rotation.y += delta * GLOBAL_ROTATION_SPEED;
@@ -1899,6 +1901,7 @@ export default function SolarSystemPhotorealistic() {
       renderer.dispose();
       if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- init once on mount
   }, []);
 
   // ===== ANIMATION (planets, satellites, asteroids) =====

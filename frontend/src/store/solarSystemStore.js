@@ -113,6 +113,10 @@ export const useSolarSystemStore = create((set, get) => ({
   error: null,
   /** true quando os dados vêm do fallback (API indisponível) */
   useOfflineFallback: false,
+  /** true after Three.js renders its first frame */
+  sceneReady: false,
+  /** true after the cinematic intro has finished */
+  introComplete: false,
   
   // Search
   searchQuery: '',
@@ -156,6 +160,8 @@ export const useSolarSystemStore = create((set, get) => ({
   setError: (error) => set({ error }),
   
   setUseOfflineFallback: (value) => set({ useOfflineFallback: value }),
+  setSceneReady: (ready) => set({ sceneReady: ready }),
+  setIntroComplete: (complete) => set({ introComplete: complete }),
 
   /** Carrega dados padrão e limpa erro (para exibir a cena sem backend). */
   useDefaultData: () => set({
