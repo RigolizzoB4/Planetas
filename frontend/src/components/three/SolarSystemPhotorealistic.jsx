@@ -1094,13 +1094,18 @@ function createPlanet(scene, loader, name, cfg, R) {
     } else if (style === 'neptune') {
       innerMul = 1.3; outerMul = 1.8; ringColor = 0x5566AA; ringOpacity = 0.12; ringTilt = Math.PI / 2.1;
     } else {
-      // Saturn Rings — More visible and dense
-      innerMul = 1.3; outerMul = 2.5; ringColor = 0xFFFFFF; ringOpacity = 0.95; ringTilt = Math.PI / 2.5;
+      // Saturn Rings — Optimized for visibility and texture detail
+      innerMul = 1.3; outerMul = 2.5; ringColor = 0xFFFFFF; ringOpacity = 1.0; ringTilt = Math.PI / 2.5;
     }
     const ringGeo = new THREE.RingGeometry(cfg.size * innerMul, cfg.size * outerMul, 128);
     const ringMat = new THREE.MeshStandardMaterial({
-      color: ringColor, side: THREE.DoubleSide, transparent: true, opacity: ringOpacity, roughness: 0.4, metalness: 0.1,
-      emissive: new THREE.Color(0x222222), emissiveIntensity: 0.05
+      color: ringColor, 
+      side: THREE.DoubleSide, 
+      transparent: true, 
+      opacity: ringOpacity, 
+      roughness: 0.6, 
+      metalness: 0.0,
+      alphaTest: 0.05 // Ajuda a manter a nitidez da textura de transparência
     });
     if (style === 'saturn') {
       const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
@@ -1457,7 +1462,7 @@ export default function SolarSystemPhotorealistic() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.80;
+    renderer.toneMappingExposure = 0.65; // Reduzir exposição global para evitar estouro de luz
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1470,7 +1475,7 @@ export default function SolarSystemPhotorealistic() {
     R.renderer = renderer;
 
     // Luz principal do Sol — preset NASA Eyes (decay suave)
-    const sunLight = new THREE.PointLight(0xFFF4E0, 4500, 0, 1.2);
+    const sunLight = new THREE.PointLight(0xFFF4E0, 2500, 0, 1.5); // Reduzir intensidade da luz do Sol
     sunLight.position.set(0, 0, 0);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.set(2048, 2048);
@@ -1505,7 +1510,8 @@ export default function SolarSystemPhotorealistic() {
     outlinePass.hiddenEdgeColor.set('#FFFFFF');
     composer.addPass(outlinePass);
     // Bloom — preset NASA Eyes: só o Sol brilha (threshold alto)
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.35, 0.5, 0.88);
+    // Bloom — Reduzido para não ofuscar planetas, threshold alto para focar no Sol
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(w, h), 0.15, 0.4, 0.95);
     composer.addPass(bloomPass);
     composer.addPass(new SMAAPass(w * pr, h * pr));
 
