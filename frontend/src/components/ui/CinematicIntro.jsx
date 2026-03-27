@@ -1,121 +1,87 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { useSolarSystemStore } from '../../store/solarSystemStore';
 
-const STAR_COUNT = 120;
-const MIN_INTRO_MS = 5000;
+const STAR_COUNT = 90;
 
 function generateStars(count) {
-  const stars = [];
-  for (let i = 0; i < count; i++) {
-    stars.push({
-      id: i,
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-      size: Math.random() * 2.5 + 0.5,
-      delay: Math.random() * 4,
-      duration: Math.random() * 3 + 2,
-    });
-  }
-  return stars;
+  const s = [];
+  for (let i = 0; i < count; i++) s.push({
+    id: i,
+    left: `${Math.random() * 100}%`,
+    top: `${Math.random() * 100}%`,
+    size: Math.random() * 2 + 0.5,
+    delay: Math.random() * 4,
+    duration: Math.random() * 3 + 2,
+  });
+  return s;
 }
 
 export default function CinematicIntro() {
-  const { sceneReady, setIntroComplete } = useSolarSystemStore();
-  const [phase, setPhase] = useState('logo');
-  const [canEnter, setCanEnter] = useState(false);
-  const [fading, setFading] = useState(false);
-
+  const { introPhase, introSubtitle, sceneReady, triggerExplore } = useSolarSystemStore();
   const stars = useMemo(() => generateStars(STAR_COUNT), []);
 
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase('tagline'), 1800);
-    const t2 = setTimeout(() => setPhase('ready'), 3600);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  if (introPhase === 'free') return null;
 
-  useEffect(() => {
-    const minTimer = setTimeout(() => {
-      if (sceneReady) setCanEnter(true);
-    }, MIN_INTRO_MS);
-    return () => clearTimeout(minTimer);
-  }, [sceneReady]);
-
-  useEffect(() => {
-    if (sceneReady && phase === 'ready') {
-      const t = setTimeout(() => setCanEnter(true), 400);
-      return () => clearTimeout(t);
-    }
-  }, [sceneReady, phase]);
-
-  const handleEnter = useCallback(() => {
-    if (!canEnter) return;
-    setFading(true);
-    setTimeout(() => setIntroComplete(true), 1200);
-  }, [canEnter, setIntroComplete]);
-
-  useEffect(() => {
-    if (!canEnter) return;
-    const onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') handleEnter(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [canEnter, handleEnter]);
+  const isLoading = !sceneReady;
+  const isCockpit = introPhase === 'cockpit';
+  const isExiting = introPhase === 'exiting';
+  const isCinematic = introPhase === 'cinematic';
 
   return (
-    <div
-      className={`cinematic-intro ${fading ? 'cinematic-intro--fade-out' : ''}`}
-      onClick={handleEnter}
-      role="button"
-      tabIndex={0}
-    >
-      {/* Star field */}
-      <div className="cinematic-stars" aria-hidden="true">
-        {stars.map((s) => (
-          <span
-            key={s.id}
-            className="cinematic-star"
-            style={{
-              left: s.left,
-              top: s.top,
-              width: s.size,
-              height: s.size,
-              animationDelay: `${s.delay}s`,
-              animationDuration: `${s.duration}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Central glow */}
-      <div className="cinematic-sun-glow" aria-hidden="true" />
-
-      {/* Content */}
-      <div className="cinematic-content">
-        <div className={`cinematic-logo ${phase !== 'logo' ? 'cinematic-logo--settled' : ''}`}>
-          <span className="cinematic-b4">B4</span>
-          <span className="cinematic-group">GROUP</span>
+    <div className={`cin-overlay ${isLoading ? 'cin-overlay--opaque' : 'cin-overlay--transparent'} ${isExiting ? 'cin-overlay--hide' : ''}`}>
+      {/* CSS star field — visible only during loading */}
+      {isLoading && (
+        <div className="cin-stars" aria-hidden="true">
+          {stars.map(s => (
+            <span key={s.id} className="cin-star" style={{
+              left: s.left, top: s.top, width: s.size, height: s.size,
+              animationDelay: `${s.delay}s`, animationDuration: `${s.duration}s`,
+            }} />
+          ))}
         </div>
+      )}
 
-        <h1 className={`cinematic-title ${phase === 'tagline' || phase === 'ready' ? 'cinematic-title--visible' : ''}`}>
-          Sistema Solar Interativo
-        </h1>
-
-        <p className={`cinematic-subtitle ${phase === 'ready' ? 'cinematic-subtitle--visible' : ''}`}>
-          Representação Stack Satélites de Tecnologia
-        </p>
-
-        <div className={`cinematic-enter ${canEnter ? 'cinematic-enter--visible' : ''}`}>
-          <button className="cinematic-enter-btn" onClick={handleEnter} disabled={!canEnter}>
-            Explorar
-          </button>
-          <span className="cinematic-enter-hint">pressione Enter ou clique</span>
+      {/* Loading spinner */}
+      {isLoading && (
+        <div className="cin-loader">
+          <div className="cin-loader__sun" />
+          <div className="cin-loader__ring" />
+          <p className="cin-loader__text">Inicializando sistema solar...</p>
         </div>
+      )}
 
-        {!canEnter && phase === 'ready' && (
-          <div className="cinematic-loading-bar">
-            <div className="cinematic-loading-bar__fill" />
+      {/* Subtitle bar (during cinematic fly-through) */}
+      {isCinematic && introSubtitle && (
+        <div className="cin-subtitle">
+          <span>{introSubtitle}</span>
+        </div>
+      )}
+
+      {/* Cockpit panel overlay */}
+      {isCockpit && (
+        <div className="cin-cockpit-panel">
+          <div className="cin-panel__inner">
+            <div className="cin-panel__header">
+              <span className="cin-panel__b4">B4</span>
+              <span className="cin-panel__title">Sistema Solar ERD-FX</span>
+            </div>
+            <div className="cin-panel__divider" />
+            <p className="cin-panel__desc">
+              Representação interativa da stack de tecnologia B4 Group como um sistema solar.
+              Cada planeta representa um módulo, satélites são microsserviços.
+            </p>
+            <ul className="cin-panel__features">
+              <li>Orbite livremente com o mouse</li>
+              <li>Clique em qualquer planeta ou satélite para detalhes</li>
+              <li>Use os controles para ajustar velocidade e visualização</li>
+            </ul>
+            <button className="cin-panel__btn" onClick={() => triggerExplore && triggerExplore()}>
+              EXPLORAR
+            </button>
+            <span className="cin-panel__hint">ou pressione Enter</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

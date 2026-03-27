@@ -1368,6 +1368,65 @@ function createParkerSolarProbe(solarGroup, R) {
   R.parkerGroup = group;
 }
 
+// ==================== INTRO COCKPIT (procedural sci-fi interior) ====================
+function buildIntroCockpit() {
+  const g = new THREE.Group();
+  g.name = 'IntroCockpit';
+  const D = 7, W = 5.5, H = 3.2;
+
+  const mkWall = (w, h) => new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ color: 0x080c14, metalness: 0.85, roughness: 0.22, side: THREE.DoubleSide })
+  );
+
+  const floor = mkWall(W, D); floor.rotation.x = -Math.PI / 2; floor.position.y = -H / 2; g.add(floor);
+  const ceil = mkWall(W, D);  ceil.rotation.x = Math.PI / 2;  ceil.position.y = H / 2;  g.add(ceil);
+  const back = mkWall(W, H);  back.position.z = D / 2; g.add(back);
+  [-1, 1].forEach(s => { const sw = mkWall(D, H); sw.rotation.y = -s * Math.PI / 2; sw.position.x = s * W / 2; g.add(sw); });
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a2535, metalness: 0.9, roughness: 0.2, emissive: new THREE.Color(0x0a1828), emissiveIntensity: 0.4 });
+  const ft = 0.14;
+  [[W + ft, ft, ft, 0, H / 2, -D / 2], [W + ft, ft, ft, 0, -H / 2, -D / 2], [ft, H, ft, -W / 2, 0, -D / 2], [ft, H, ft, W / 2, 0, -D / 2]].forEach(([bw, bh, bd, px, py, pz]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), frameMat);
+    m.position.set(px, py, pz); g.add(m);
+  });
+
+  const accent = () => new THREE.MeshBasicMaterial({ color: 0x1a5a8a, transparent: true, opacity: 0.55 });
+  [-1, 1].forEach(s => [-0.7, 0.7].forEach(y => {
+    const st = new THREE.Mesh(new THREE.PlaneGeometry(D * 0.85, 0.035), accent());
+    st.rotation.y = -s * Math.PI / 2; st.position.set(s * (W / 2 - 0.005), y, 0); g.add(st);
+  }));
+
+  const gridMat = new THREE.MeshBasicMaterial({ color: 0x0c1a2c, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+  for (let i = -3; i <= 3; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.015, D * 0.9), gridMat); l.rotation.x = -Math.PI / 2; l.position.set(i * 0.7, -H / 2 + 0.005, 0); g.add(l); }
+
+  const holoMat = new THREE.MeshBasicMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+  const holo = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.7), holoMat);
+  holo.position.set(0, 0.25, -0.8); holo.name = 'HoloPanel'; g.add(holo);
+
+  const bPts = [[-1.4, -0.85], [1.4, -0.85], [1.4, 0.85], [-1.4, 0.85]].map(([x, y]) => new THREE.Vector3(x, y, 0));
+  const border = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(bPts), new THREE.LineBasicMaterial({ color: 0xF3AE3E, transparent: true, opacity: 0.4 }));
+  border.position.copy(holo.position); border.position.z -= 0.005; g.add(border);
+
+  g.add(Object.assign(new THREE.PointLight(0x1a5a9a, 2.5, 12), { position: new THREE.Vector3(0, H / 2 - 0.3, 0) }));
+  g.add(Object.assign(new THREE.PointLight(0xF3AE3E, 0.7, 6), { position: new THREE.Vector3(0, 0.25, -0.8) }));
+
+  const consoleGeo = new THREE.BoxGeometry(W * 0.7, 0.08, 0.6);
+  const consoleMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, metalness: 0.9, roughness: 0.15, emissive: new THREE.Color(0x0a1525), emissiveIntensity: 0.2 });
+  const consoleMesh = new THREE.Mesh(consoleGeo, consoleMat);
+  consoleMesh.position.set(0, -0.5, -D / 2 + 0.8); g.add(consoleMesh);
+
+  const dotMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 });
+  for (let i = 0; i < 8; i++) {
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), dotMat.clone());
+    dot.material.color.setHex([0x00ff88, 0xff4444, 0x44aaff, 0xF3AE3E][i % 4]);
+    dot.position.set(-1.2 + i * 0.35, -0.44, -D / 2 + 0.8);
+    g.add(dot);
+  }
+
+  return { group: g, DEPTH: D, WIDTH: W, HEIGHT: H };
+}
+
 // ==================== COMPONENT ====================
 export default function SolarSystemPhotorealistic() {
   const containerRef = useRef(null);
@@ -1381,7 +1440,7 @@ export default function SolarSystemPhotorealistic() {
     auroraEngineGlow: null, auroraEngineHalo: null, auroraTrail: [], auroraFallbackBody: null
   });
 
-  const { objects, setSelectedObject, setAuroraPanelOpen, setSceneReady, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
+  const { objects, setSelectedObject, setAuroraPanelOpen, setSceneReady, setIntroPhase, setIntroSubtitle, setTriggerExplore, timeSpeed, isPaused, viewMode, showCrossSectionSun, cameraPreset } = useSolarSystemStore();
   refs.current.latestObjects = objects;
   refs.current.latestSetSelectedObject = setSelectedObject;
   refs.current.latestSetAuroraPanelOpen = setAuroraPanelOpen;
@@ -1616,18 +1675,68 @@ export default function SolarSystemPhotorealistic() {
       if (!R.moons) R.moons = [];
       R.moons.push({ mesh: a7Group, angle: a7Angle, orbitRadius: a7Orbit, yOffset: a7YOffset, bobAmp: 0.08, speed: 0.25 });
 
-      // Intro suave — overview do sistema solar, sem travar controles
+      // ===== CINEMATIC INTRO — camera flies to Sun, then into Aurora 7 cockpit =====
       if (!R.introStarted) {
         R.introStarted = true;
         R.initialZoomDone = true;
-        controls.enabled = true;
-        // Câmera começa afastada e faz zoom suave para visão geral
-        camera.position.set(0, 80, 160);
-        controls.target.set(0, 0, 0);
-        gsap.to(camera.position, {
-          x: 0, y: 30, z: 80,
-          duration: 4.0, ease: 'power2.out'
-        });
+        controls.enabled = false;
+        R.introActive = true;
+        R.introLookAt = new THREE.Vector3(0, 0, 0);
+
+        const earthPos = new THREE.Vector3();
+        R.planets['Earth'].getWorldPosition(earthPos);
+        const dirToSun = new THREE.Vector3().subVectors(new THREE.Vector3(0, 0, 0), earthPos).normalize();
+        const cockpitPos = earthPos.clone().add(dirToSun.clone().multiplyScalar(4.5));
+        cockpitPos.y = 0.2;
+
+        const { group: cockpit, DEPTH: cpD } = buildIntroCockpit();
+        cockpit.position.copy(cockpitPos);
+        cockpit.lookAt(0, 0, 0);
+        cockpit.updateMatrixWorld(true);
+        solarGroup.add(cockpit);
+        R.cockpitGroup = cockpit;
+
+        const toW = (v) => v.clone().applyMatrix4(cockpit.matrixWorld);
+        const seatW = toW(new THREE.Vector3(0, 0.25, cpD * 0.3));
+        const panelW = toW(new THREE.Vector3(0, 0.25, -cpD * 0.2));
+        const entW  = toW(new THREE.Vector3(0, 0.6, -cpD / 2 - 6));
+        const midW  = toW(new THREE.Vector3(0, 0.4, -cpD / 2 - 1.5));
+
+        camera.position.set(0, 120, 300);
+        camera.lookAt(0, 0, 0);
+
+        const tl = gsap.timeline({ paused: true });
+        tl.to(camera.position, { x: 0, y: 4, z: 16, duration: 4, ease: 'power2.inOut' });
+        tl.call(() => setIntroSubtitle('B4 GROUP'), [], '+=0.2');
+        tl.to(camera.position, { x: 6, y: 3, z: 14, duration: 2.2, ease: 'sine.inOut' });
+        tl.call(() => setIntroSubtitle(''), [], '+=0');
+        tl.to(camera.position, { x: entW.x, y: entW.y, z: entW.z, duration: 4.5, ease: 'power2.inOut' });
+        tl.to(R.introLookAt, { x: cockpitPos.x, y: cockpitPos.y, z: cockpitPos.z, duration: 4.5, ease: 'power2.inOut' }, '<');
+        tl.call(() => setIntroSubtitle('Aurora 7 — Nave B4 ERD-FX'), [], '-=3.5');
+        tl.to(camera.position, { x: midW.x, y: midW.y, z: midW.z, duration: 1.8, ease: 'power2.inOut' });
+        tl.to(R.introLookAt, { x: panelW.x, y: panelW.y, z: panelW.z, duration: 1.8, ease: 'power2.inOut' }, '<');
+        tl.call(() => setIntroSubtitle(''));
+        tl.to(camera.position, { x: seatW.x, y: seatW.y, z: seatW.z, duration: 2, ease: 'power2.out' });
+        tl.call(() => setIntroPhase('cockpit'));
+
+        R.introTimeline = tl;
+
+        const exitOverview = new THREE.Vector3(0, 35, 85);
+        R.triggerExit = () => {
+          setIntroPhase('exiting');
+          const ex = gsap.timeline();
+          ex.to(camera.position, { x: entW.x, y: entW.y + 8, z: entW.z, duration: 2, ease: 'power2.inOut' });
+          ex.to(R.introLookAt, { x: 0, y: 0, z: 0, duration: 2, ease: 'power2.inOut' }, '<');
+          ex.to(camera.position, { x: exitOverview.x, y: exitOverview.y, z: exitOverview.z, duration: 3, ease: 'power2.inOut' });
+          ex.call(() => {
+            controls.target.set(0, 0, 0);
+            controls.enabled = true;
+            R.introActive = false;
+            cockpit.visible = false;
+            setIntroPhase('free');
+          });
+        };
+        setTriggerExplore(R.triggerExit);
       }
 
       // Carrega modelo GLB da Aurora (visual original)
@@ -1826,9 +1935,14 @@ export default function SolarSystemPhotorealistic() {
       R.frameId = requestAnimationFrame(animate);
       const delta = R.clock.getDelta();
       R.elapsed += delta;
-      if (!firstFrameFired) { firstFrameFired = true; setSceneReady(true); }
+      if (!firstFrameFired) {
+        firstFrameFired = true;
+        setSceneReady(true);
+        if (R.introTimeline) { setIntroPhase('cinematic'); R.introTimeline.play(); }
+      }
+      if (R.introActive && R.introLookAt) camera.lookAt(R.introLookAt);
       controls.update();
-      if (R.solarGroup) {
+      if (R.solarGroup && !R.introActive) {
         R.solarGroup.rotation.y += delta * GLOBAL_ROTATION_SPEED;
       }
       if (R.dustLayer) {
@@ -1912,7 +2026,9 @@ export default function SolarSystemPhotorealistic() {
     const update = () => {
       animId = requestAnimationFrame(update);
       if (isPaused) return;
-      const now = performance.now(), dt = (now - lastTime) / 1000;
+      const now = performance.now();
+      if (R.introActive) { lastTime = now; return; }
+      const dt = (now - lastTime) / 1000;
       lastTime = now;
       Object.entries(PLANETS).forEach(([name, cfg]) => {
         const p = R.planets[name];

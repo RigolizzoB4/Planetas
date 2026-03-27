@@ -115,8 +115,10 @@ export const useSolarSystemStore = create((set, get) => ({
   useOfflineFallback: false,
   /** true after Three.js renders its first frame */
   sceneReady: false,
-  /** true after the cinematic intro has finished */
-  introComplete: false,
+  /** 'loading' | 'cinematic' | 'cockpit' | 'exiting' | 'free' */
+  introPhase: 'loading',
+  introSubtitle: '',
+  triggerExplore: null,
   
   // Search
   searchQuery: '',
@@ -161,7 +163,9 @@ export const useSolarSystemStore = create((set, get) => ({
   
   setUseOfflineFallback: (value) => set({ useOfflineFallback: value }),
   setSceneReady: (ready) => set({ sceneReady: ready }),
-  setIntroComplete: (complete) => set({ introComplete: complete }),
+  setIntroPhase: (phase) => set({ introPhase: phase }),
+  setIntroSubtitle: (text) => set({ introSubtitle: text }),
+  setTriggerExplore: (fn) => set({ triggerExplore: fn }),
 
   /** Carrega dados padrão e limpa erro (para exibir a cena sem backend). */
   useDefaultData: () => set({
