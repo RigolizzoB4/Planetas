@@ -1124,11 +1124,11 @@ function createPlanet(scene, loader, name, cfg, R) {
         const grad = ctx.createLinearGradient(0, 0, 1024, 0);
         // Cores de Saturno: tons de bege, marrom e cinza com transparências variadas
         grad.addColorStop(0.0, 'rgba(0,0,0,0)');
-        grad.addColorStop(0.1, 'rgba(201,184,150,0.6)');
-        grad.addColorStop(0.3, 'rgba(180,160,130,0.8)');
+        grad.addColorStop(0.1, 'rgba(201,184,150,0.7)');
+        grad.addColorStop(0.3, 'rgba(180,160,130,0.9)');
         grad.addColorStop(0.45, 'rgba(0,0,0,0)'); // Divisão de Cassini
-        grad.addColorStop(0.55, 'rgba(160,140,110,0.7)');
-        grad.addColorStop(0.8, 'rgba(140,120,100,0.5)');
+        grad.addColorStop(0.55, 'rgba(160,140,110,0.8)');
+        grad.addColorStop(0.8, 'rgba(140,120,100,0.6)');
         grad.addColorStop(1.0, 'rgba(0,0,0,0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, 1024, 64);
@@ -1144,6 +1144,10 @@ function createPlanet(scene, loader, name, cfg, R) {
       // Inicia com procedural para garantir visibilidade imediata, depois tenta carregar as texturas reais
       generateProceduralRings();
       loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, tryRingLocalPng);
+    } else {
+      // Para outros planetas com anéis (Júpiter, Urano, Netuno), não usar o fallback de Saturno
+      ringMat.map = null;
+      ringMat.alphaMap = null;
     }
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = ringTilt; ring.receiveShadow = true;
