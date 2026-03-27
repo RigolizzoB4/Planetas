@@ -1408,8 +1408,8 @@ function buildIntroCockpit() {
   const border = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(bPts), new THREE.LineBasicMaterial({ color: 0xF3AE3E, transparent: true, opacity: 0.4 }));
   border.position.copy(holo.position); border.position.z -= 0.005; g.add(border);
 
-  g.add(Object.assign(new THREE.PointLight(0x1a5a9a, 2.5, 12), { position: new THREE.Vector3(0, H / 2 - 0.3, 0) }));
-  g.add(Object.assign(new THREE.PointLight(0xF3AE3E, 0.7, 6), { position: new THREE.Vector3(0, 0.25, -0.8) }));
+  const blueL = new THREE.PointLight(0x1a5a9a, 2.5, 12); blueL.position.set(0, H / 2 - 0.3, 0); g.add(blueL);
+  const warmL = new THREE.PointLight(0xF3AE3E, 0.7, 6); warmL.position.set(0, 0.25, -0.8); g.add(warmL);
 
   const consoleGeo = new THREE.BoxGeometry(W * 0.7, 0.08, 0.6);
   const consoleMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, metalness: 0.9, roughness: 0.15, emissive: new THREE.Color(0x0a1525), emissiveIntensity: 0.2 });
@@ -1677,6 +1677,11 @@ export default function SolarSystemPhotorealistic() {
 
       // ===== CINEMATIC INTRO — camera flies to Sun, then into Aurora 7 cockpit =====
       if (!R.introStarted) {
+        if (R.introTimeline) { R.introTimeline.kill(); R.introTimeline = null; }
+        if (R.introLookAt) gsap.killTweensOf(R.introLookAt);
+        gsap.killTweensOf(camera.position);
+        if (R.cockpitGroup && R.cockpitGroup.parent) R.cockpitGroup.parent.remove(R.cockpitGroup);
+
         R.introStarted = true;
         R.initialZoomDone = true;
         controls.enabled = false;
@@ -1730,7 +1735,9 @@ export default function SolarSystemPhotorealistic() {
           ex.to(camera.position, { x: exitOverview.x, y: exitOverview.y, z: exitOverview.z, duration: 3, ease: 'power2.inOut' });
           ex.call(() => {
             controls.target.set(0, 0, 0);
+            controls.object.position.copy(camera.position);
             controls.enabled = true;
+            controls.update();
             R.introActive = false;
             cockpit.visible = false;
             setIntroPhase('free');
@@ -1941,7 +1948,7 @@ export default function SolarSystemPhotorealistic() {
         if (R.introTimeline) { setIntroPhase('cinematic'); R.introTimeline.play(); }
       }
       if (R.introActive && R.introLookAt) camera.lookAt(R.introLookAt);
-      controls.update();
+      if (!R.introActive) controls.update();
       if (R.solarGroup && !R.introActive) {
         R.solarGroup.rotation.y += delta * GLOBAL_ROTATION_SPEED;
       }
@@ -1979,6 +1986,9 @@ export default function SolarSystemPhotorealistic() {
     animate();
 
     return () => {
+      if (R.introTimeline) { R.introTimeline.kill(); R.introTimeline = null; }
+      gsap.killTweensOf(camera.position);
+      if (R.introLookAt) gsap.killTweensOf(R.introLookAt);
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       controls.removeEventListener('start', onControlStart);
