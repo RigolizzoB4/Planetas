@@ -1103,7 +1103,10 @@ function createPlanet(scene, loader, name, cfg, R) {
     if (style === 'saturn') {
       const applyRing = (t) => { t.colorSpace = THREE.SRGBColorSpace; ringMat.map = t; ringMat.alphaMap = t; ringMat.needsUpdate = true; };
       const ring2k = TEX.SaturnRing.replace(/8k_/g, '2k_');
-      loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing))));
+      const tryRingRemote = () => loader.load(TEX.SaturnRing, applyRing, undefined, () => loader.load(ring2k, applyRing));
+      const tryRingLocal2k = () => loader.load(getLocalTexUrl(ring2k) || ring2k, applyRing, undefined, tryRingRemote);
+      const tryRingLocalPng = () => { const url = getLocalTexUrlPng(TEX.SaturnRing); if (url) loader.load(url, applyRing, undefined, tryRingLocal2k); else tryRingLocal2k(); };
+      loader.load(getLocalTexUrl(TEX.SaturnRing) || TEX.SaturnRing, applyRing, undefined, tryRingLocalPng);
     }
     const ring = new THREE.Mesh(ringGeo, ringMat);
     ring.rotation.x = ringTilt; ring.receiveShadow = true;
