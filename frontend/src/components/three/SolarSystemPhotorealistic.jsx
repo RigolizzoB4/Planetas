@@ -1373,56 +1373,186 @@ function buildIntroCockpit() {
   const g = new THREE.Group();
   g.name = 'IntroCockpit';
   const D = 7, W = 5.5, H = 3.2;
+  const HW = W / 2, HH = H / 2, HD = D / 2;
 
-  const mkWall = (w, h) => new THREE.Mesh(
-    new THREE.PlaneGeometry(w, h),
-    new THREE.MeshStandardMaterial({ color: 0x080c14, metalness: 0.85, roughness: 0.22, side: THREE.DoubleSide })
-  );
+  // ---- shared materials ----
+  const hullMat = new THREE.MeshStandardMaterial({ color: 0x0a0e16, metalness: 0.92, roughness: 0.18, side: THREE.DoubleSide });
+  const ribMat  = new THREE.MeshStandardMaterial({ color: 0x1c2a3a, metalness: 0.95, roughness: 0.12, emissive: new THREE.Color(0x0d1a2a), emissiveIntensity: 0.3 });
+  const panelMat = new THREE.MeshStandardMaterial({ color: 0x0c1018, metalness: 0.88, roughness: 0.25 });
+  const accentMat = new THREE.MeshBasicMaterial({ color: 0x22aaee, transparent: true, opacity: 0.6 });
+  const warnMat = new THREE.MeshBasicMaterial({ color: 0xF3AE3E, transparent: true, opacity: 0.45 });
+  const screenGlow = (c, o) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o || 0.35, side: THREE.DoubleSide });
 
-  const floor = mkWall(W, D); floor.rotation.x = -Math.PI / 2; floor.position.y = -H / 2; g.add(floor);
-  const ceil = mkWall(W, D);  ceil.rotation.x = Math.PI / 2;  ceil.position.y = H / 2;  g.add(ceil);
-  const back = mkWall(W, H);  back.position.z = D / 2; g.add(back);
-  [-1, 1].forEach(s => { const sw = mkWall(D, H); sw.rotation.y = -s * Math.PI / 2; sw.position.x = s * W / 2; g.add(sw); });
-
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1a2535, metalness: 0.9, roughness: 0.2, emissive: new THREE.Color(0x0a1828), emissiveIntensity: 0.4 });
-  const ft = 0.14;
-  [[W + ft, ft, ft, 0, H / 2, -D / 2], [W + ft, ft, ft, 0, -H / 2, -D / 2], [ft, H, ft, -W / 2, 0, -D / 2], [ft, H, ft, W / 2, 0, -D / 2]].forEach(([bw, bh, bd, px, py, pz]) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), frameMat);
-    m.position.set(px, py, pz); g.add(m);
+  // ---- hull: floor, ceiling, back wall, side walls ----
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), hullMat);
+  floor.rotation.x = -Math.PI / 2; floor.position.y = -HH; g.add(floor);
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), hullMat);
+  ceil.rotation.x = Math.PI / 2; ceil.position.y = HH; g.add(ceil);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(W, H), hullMat);
+  back.position.z = HD; g.add(back);
+  [-1, 1].forEach(s => {
+    const sw = new THREE.Mesh(new THREE.PlaneGeometry(D, H), hullMat);
+    sw.rotation.y = -s * Math.PI / 2; sw.position.x = s * HW; g.add(sw);
   });
 
-  const accent = () => new THREE.MeshBasicMaterial({ color: 0x1a5a8a, transparent: true, opacity: 0.55 });
-  [-1, 1].forEach(s => [-0.7, 0.7].forEach(y => {
-    const st = new THREE.Mesh(new THREE.PlaneGeometry(D * 0.85, 0.035), accent());
-    st.rotation.y = -s * Math.PI / 2; st.position.set(s * (W / 2 - 0.005), y, 0); g.add(st);
-  }));
+  // ---- structural ribs (ceiling + walls) ----
+  const ribGeo = new THREE.BoxGeometry(W + 0.1, 0.08, 0.08);
+  const ribGeoV = new THREE.BoxGeometry(0.07, H, 0.07);
+  for (let i = -2; i <= 2; i++) {
+    const r = new THREE.Mesh(ribGeo, ribMat);
+    r.position.set(0, HH - 0.02, i * 1.2); g.add(r);
+    const rf = new THREE.Mesh(new THREE.BoxGeometry(W + 0.1, 0.08, 0.08), ribMat);
+    rf.position.set(0, -HH + 0.02, i * 1.2); g.add(rf);
+  }
+  [-1, 1].forEach(s => {
+    for (let i = -2; i <= 2; i++) {
+      const rv = new THREE.Mesh(ribGeoV, ribMat);
+      rv.position.set(s * (HW - 0.02), 0, i * 1.2); g.add(rv);
+    }
+  });
 
-  const gridMat = new THREE.MeshBasicMaterial({ color: 0x0c1a2c, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-  for (let i = -3; i <= 3; i++) { const l = new THREE.Mesh(new THREE.PlaneGeometry(0.015, D * 0.9), gridMat); l.rotation.x = -Math.PI / 2; l.position.set(i * 0.7, -H / 2 + 0.005, 0); g.add(l); }
+  // ---- windshield frame (front opening with struts) ----
+  const strutMat = new THREE.MeshStandardMaterial({ color: 0x2a3a4a, metalness: 0.95, roughness: 0.1, emissive: new THREE.Color(0x101820), emissiveIntensity: 0.2 });
+  const strutT = 0.1;
+  [[W + 0.2, strutT, strutT, 0, HH, -HD], [W + 0.2, strutT, strutT, 0, -HH, -HD],
+   [strutT, H + 0.1, strutT, -HW, 0, -HD], [strutT, H + 0.1, strutT, HW, 0, -HD],
+   [strutT, H * 1.1, strutT * 1.5, 0, 0, -HD]].forEach(([bw, bh, bd, px, py, pz]) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), strutMat);
+    m.position.set(px, py, pz); g.add(m);
+  });
+  [[-HW * 0.5, HH * 0.7, -HD], [HW * 0.5, HH * 0.7, -HD]].forEach(([x, y, z]) => {
+    const diag = new THREE.Mesh(new THREE.BoxGeometry(strutT * 0.8, H * 0.45, strutT * 0.8), strutMat);
+    diag.position.set(x, y, z); diag.rotation.z = (x > 0 ? -1 : 1) * 0.35; g.add(diag);
+  });
 
-  const holoMat = new THREE.MeshBasicMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.1, side: THREE.DoubleSide });
+  // ---- windshield glass (subtle transparent) ----
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x112233, transparent: true, opacity: 0.08, metalness: 0.1,
+    roughness: 0.05, side: THREE.DoubleSide, envMapIntensity: 0.5
+  });
+  const glass = new THREE.Mesh(new THREE.PlaneGeometry(W - 0.3, H - 0.3), glassMat);
+  glass.position.set(0, 0, -HD + 0.02); g.add(glass);
+
+  // ---- dashboard (multi-level angled console) ----
+  const dashShape = new THREE.Shape();
+  dashShape.moveTo(-HW * 0.85, -0.05);
+  dashShape.lineTo(HW * 0.85, -0.05);
+  dashShape.lineTo(HW * 0.85, 0.05);
+  dashShape.lineTo(-HW * 0.85, 0.05);
+  dashShape.closePath();
+  const dashMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, metalness: 0.92, roughness: 0.12, emissive: new THREE.Color(0x080d15), emissiveIntensity: 0.15 });
+
+  const dashTop = new THREE.Mesh(new THREE.BoxGeometry(W * 0.85, 0.12, 1.0), dashMat);
+  dashTop.position.set(0, -0.1, -HD + 0.7); dashTop.rotation.x = -0.3; g.add(dashTop);
+  const dashLow = new THREE.Mesh(new THREE.BoxGeometry(W * 0.85, 0.1, 0.5), dashMat);
+  dashLow.position.set(0, -0.55, -HD + 0.55); dashLow.rotation.x = -0.5; g.add(dashLow);
+
+  // ---- main screens on dashboard ----
+  const mainScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.7), screenGlow(0x0088cc, 0.25));
+  mainScreen.position.set(0, 0.02, -HD + 0.18); g.add(mainScreen);
+  const screenBorder = new THREE.Mesh(new THREE.RingGeometry(0.0, 0.02, 4, 1), screenGlow(0x22aaee, 0.5));
+
+  [-1, 1].forEach(s => {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.55), screenGlow(0x0066aa, 0.2));
+    side.position.set(s * 1.3, -0.02, -HD + 0.2); side.rotation.y = s * 0.2; g.add(side);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.59, 0.02), ribMat);
+    frame.position.copy(side.position); frame.position.z += 0.01; frame.rotation.y = s * 0.2; g.add(frame);
+  });
+
+  // ---- screen scan lines (subtle horizontal lines on main screen) ----
+  for (let i = 0; i < 8; i++) {
+    const sl = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.008), screenGlow(0x44ccff, 0.15));
+    sl.position.set(0, -0.28 + i * 0.085, -HD + 0.175); g.add(sl);
+  }
+
+  // ---- HUD holographic panel (for the interactive cockpit overlay) ----
+  const holoMat = new THREE.MeshBasicMaterial({ color: 0x1a6aaa, transparent: true, opacity: 0.08, side: THREE.DoubleSide });
   const holo = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.7), holoMat);
   holo.position.set(0, 0.25, -0.8); holo.name = 'HoloPanel'; g.add(holo);
 
-  const bPts = [[-1.4, -0.85], [1.4, -0.85], [1.4, 0.85], [-1.4, 0.85]].map(([x, y]) => new THREE.Vector3(x, y, 0));
-  const border = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(bPts), new THREE.LineBasicMaterial({ color: 0xF3AE3E, transparent: true, opacity: 0.4 }));
-  border.position.copy(holo.position); border.position.z -= 0.005; g.add(border);
+  // ---- side consoles (equipment panels on walls) ----
+  [-1, 1].forEach(s => {
+    const sidePanel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.2, 2.0), panelMat);
+    sidePanel.position.set(s * (HW - 0.04), -0.2, 0); g.add(sidePanel);
+    for (let j = 0; j < 5; j++) {
+      const btn = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8), screenGlow([0x00ff88, 0xff4444, 0x44aaff, 0xF3AE3E, 0x00ff88][j], 0.7));
+      btn.rotation.y = -s * Math.PI / 2;
+      btn.position.set(s * (HW - 0.07), -0.5 + j * 0.3, -0.6 + j * 0.12); g.add(btn);
+    }
+    const stripe = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.025), accentMat);
+    stripe.rotation.y = -s * Math.PI / 2;
+    stripe.position.set(s * (HW - 0.003), 0.5, 0); g.add(stripe);
+    const stripe2 = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.025), warnMat);
+    stripe2.rotation.y = -s * Math.PI / 2;
+    stripe2.position.set(s * (HW - 0.003), -0.9, 0); g.add(stripe2);
+  });
 
-  const blueL = new THREE.PointLight(0x1a5a9a, 2.5, 12); blueL.position.set(0, H / 2 - 0.3, 0); g.add(blueL);
-  const warmL = new THREE.PointLight(0xF3AE3E, 0.7, 6); warmL.position.set(0, 0.25, -0.8); g.add(warmL);
-
-  const consoleGeo = new THREE.BoxGeometry(W * 0.7, 0.08, 0.6);
-  const consoleMat = new THREE.MeshStandardMaterial({ color: 0x0d1520, metalness: 0.9, roughness: 0.15, emissive: new THREE.Color(0x0a1525), emissiveIntensity: 0.2 });
-  const consoleMesh = new THREE.Mesh(consoleGeo, consoleMat);
-  consoleMesh.position.set(0, -0.5, -D / 2 + 0.8); g.add(consoleMesh);
-
-  const dotMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 });
-  for (let i = 0; i < 8; i++) {
-    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), dotMat.clone());
-    dot.material.color.setHex([0x00ff88, 0xff4444, 0x44aaff, 0xF3AE3E][i % 4]);
-    dot.position.set(-1.2 + i * 0.35, -0.44, -D / 2 + 0.8);
-    g.add(dot);
+  // ---- overhead panel ----
+  const overheadPanel = new THREE.Mesh(new THREE.BoxGeometry(W * 0.6, 0.06, 1.5), panelMat);
+  overheadPanel.position.set(0, HH - 0.08, -0.5); g.add(overheadPanel);
+  for (let i = 0; i < 6; i++) {
+    const sw = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.04),
+      new THREE.MeshBasicMaterial({ color: i % 3 === 0 ? 0x00cc66 : (i % 3 === 1 ? 0xcc4444 : 0xccaa22), transparent: true, opacity: 0.8 }));
+    sw.position.set(-0.8 + i * 0.32, HH - 0.04, -0.5); g.add(sw);
   }
+
+  // ---- pilot seat ----
+  const seatMat = new THREE.MeshStandardMaterial({ color: 0x1a1a22, metalness: 0.6, roughness: 0.45 });
+  const seatBase = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 0.7), seatMat);
+  seatBase.position.set(0, -HH + 0.35, 1.0); g.add(seatBase);
+  const seatBack = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.0, 0.12), seatMat);
+  seatBack.position.set(0, -HH + 0.9, 1.35); seatBack.rotation.x = 0.12; g.add(seatBack);
+  const seatHead = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.35, 0.1), seatMat);
+  seatHead.position.set(0, -HH + 1.5, 1.38); g.add(seatHead);
+  [-1, 1].forEach(s => {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.25, 0.5), seatMat);
+    arm.position.set(s * 0.38, -HH + 0.52, 1.1); g.add(arm);
+  });
+
+  // ---- floor grating pattern ----
+  const gratingMat = new THREE.MeshBasicMaterial({ color: 0x0a1520, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+  for (let i = -4; i <= 4; i++) {
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.02, D * 0.95), gratingMat);
+    gl.rotation.x = -Math.PI / 2; gl.position.set(i * 0.55, -HH + 0.005, 0); g.add(gl);
+  }
+  for (let i = -3; i <= 3; i++) {
+    const gl = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.95, 0.02), gratingMat);
+    gl.rotation.x = -Math.PI / 2; gl.position.set(0, -HH + 0.005, i * 0.9); g.add(gl);
+  }
+
+  // ---- accent light strips along ceiling edges ----
+  [-1, 1].forEach(s => {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, D * 0.8),
+      new THREE.MeshBasicMaterial({ color: 0x1188cc, transparent: true, opacity: 0.5 }));
+    strip.position.set(s * (HW - 0.08), HH - 0.04, 0); g.add(strip);
+  });
+  const frontStrip = new THREE.Mesh(new THREE.BoxGeometry(W * 0.7, 0.02, 0.04),
+    new THREE.MeshBasicMaterial({ color: 0x1188cc, transparent: true, opacity: 0.4 }));
+  frontStrip.position.set(0, HH - 0.04, -HD + 0.1); g.add(frontStrip);
+
+  // ---- conduits / pipes along ceiling corners ----
+  [-1, 1].forEach(s => {
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, D * 0.85, 8), ribMat);
+    pipe.rotation.x = Math.PI / 2;
+    pipe.position.set(s * (HW - 0.12), HH - 0.12, 0); g.add(pipe);
+    const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, D * 0.7, 6), ribMat);
+    pipe2.rotation.x = Math.PI / 2;
+    pipe2.position.set(s * (HW - 0.2), HH - 0.18, 0.3); g.add(pipe2);
+  });
+
+  // ---- lighting (dramatic multi-source) ----
+  const mainLight = new THREE.PointLight(0x1a5a9a, 3.0, 14);
+  mainLight.position.set(0, HH - 0.3, 0); g.add(mainLight);
+  const dashLight = new THREE.PointLight(0x0088cc, 1.5, 6);
+  dashLight.position.set(0, 0.1, -HD + 0.5); g.add(dashLight);
+  const ambientWarm = new THREE.PointLight(0xF3AE3E, 0.5, 5);
+  ambientWarm.position.set(0, 0.25, -0.8); g.add(ambientWarm);
+  const backLight = new THREE.PointLight(0x112244, 0.8, 8);
+  backLight.position.set(0, 0, HD - 0.5); g.add(backLight);
+  [-1, 1].forEach(s => {
+    const sideLight = new THREE.PointLight(0x0a3355, 0.6, 5);
+    sideLight.position.set(s * HW * 0.7, -0.3, 0); g.add(sideLight);
+  });
 
   return { group: g, DEPTH: D, WIDTH: W, HEIGHT: H };
 }
