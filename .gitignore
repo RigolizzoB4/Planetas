@@ -15,3 +15,9 @@ git commit -m "Projeto Planetas - versão inicial"
 git remote add origin https://github.com/RigolizzoB4/Planetas.git
 git branch -M main
 git push -u origin main
+
+# Ferramentas locais
+.claude/
+.cursor/
+.graphifyignore
+graphify-out/
